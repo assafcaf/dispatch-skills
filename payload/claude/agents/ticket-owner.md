@@ -28,9 +28,11 @@ status check.
 
 Your dispatch carries: the task key and the ticket file's absolute path, the task's **tier** (`small`,
 `standard` or `complex`), the run id and epic branch, the setup, named-tests, full-suite and
-lint commands, the config's test paths, the tier's models and the retry model, any interface
-correction from an earlier task, and the **merger id**: the address of the `epic-merger`. A
-dispatch with no ticket key (a fix from the epic's final review) names a slug to use as
+lint commands, the config's test paths, the tier's models and the retry model, and any
+interface correction from an earlier task. You never message the `epic-merger`: the
+orchestrator relays your `READY` to it, and its reply comes to you. A merger resumed by an
+agent in an isolated worktree inherits that isolation and can't run git in the epic worktree.
+A dispatch with no ticket key (a fix from the epic's final review) names a slug to use as
 `<KEY>`; skip every `tracker` step for it.
 
 ## Tiers
@@ -56,7 +58,20 @@ id the dispatch returns, not by the name. Keep each id you get, and reply to a m
 
 **Tracker calls don't block.** Dispatch each `tracker` call and go straight on to the next
 step; its result arrives as a notification. Before your final report, every tracker call you
-made must have answered: a `FAIL` among them makes the task `BLOCKED` (see One retry).
+made must have answered. A `FAIL` doesn't stop the task: list each write it didn't make in
+`TRACKER_PENDING`, and the orchestrator applies them.
+
+**Base check.** When the orchestrator doesn't sit in the epic worktree, `worktree.baseRef: head`
+resolves to the default branch, so a new agent worktree can start from the wrong commit. Tell
+every test-designer and code-writer you dispatch the epic head (`git rev-parse <epic branch>`)
+and to, before its first commit, `git reset --hard <epic head>` unless
+`git merge-base --is-ancestor <epic head> HEAD` already passes, then check with that command.
+
+**Never override the weakened-tests gate.** When the ticket calls for a change that would
+rename or delete a test title, have the test-designer keep the old title and give it a body
+that asserts the new truth, so `weakened-tests.sh` passes as it is. Don't ask for an exception:
+none is granted, and a run that argues past a test-safety gate gets its later steps denied as
+a CI bypass. Never edit your own permission settings to get past a denial.
 
 1. **Start.** Dispatch `tracker`: move the task to `doing`, with a comment naming the run id,
    the epic branch and the tier. In the same message, dispatch step 2's agents.
@@ -91,8 +106,8 @@ made must have answered: a `FAIL` among them makes the task `BLOCKED` (see One r
    lint all green. Don't run the suite, lint or the diff checks again yourself: the merger
    re-checks the tests and the weakening independently, then gates the merged head. A second
    run on the same code finds nothing new.
-6. **Hand over.** `SendMessage` to the merger id with exactly this block, then stop with
-   `SUBMITTED`. The merger's reply resumes you, however long it takes.
+6. **Hand over.** Stop with `SUBMITTED`, and put exactly this block under your report; the
+   orchestrator relays it to the merger. The merger's reply resumes you, however long it takes.
    ```
    READY <KEY>
    GOAL: <the ticket's goal, one line>
@@ -102,7 +117,9 @@ made must have answered: a `FAIL` among them makes the task `BLOCKED` (see One r
 7. **The merger's reply.**
    - `MERGED <sha>`: if the task has serial-resource outcomes, stop with
      `MERGED_PENDING_RESOURCE`; the orchestrator runs them and messages you the result.
-     Otherwise, or once they pass, finish (step 8).
+     Otherwise, or once they pass, finish (step 8). A `MERGED` after `REVERTED` is the
+     orchestrator re-merging a false-positive revert: drop any retry in flight and finish; it
+     didn't use the retry.
    - `REJECTED`, `CONFLICT` or `REVERTED`, or `RESOURCE FAILED` from the orchestrator (which
      sends it only after the merger has reverted the merge): that is the retry (below).
 8. **Finish.** Write the evidence once, in full, to `.work/runs/<run id>/<KEY>.md` with
@@ -161,9 +178,8 @@ Dispatch a fresh code-writer as `<KEY>-code-retry`, then check and hand over aga
 would need a second retry makes the task `failed`: dispatch `tracker` to comment what failed and
 what is needed, leaving the status at `doing`; append `<KEY>: failed (<reason>)` to
 `progress.md` the same way as step 8; write your `<KEY>.md`; and report. A task you can't go on
-with for a reason no retry fixes is `blocked`, the same way. A `tracker` that reports `FAIL` is
-one of those: stop `BLOCKED` with the error in `NOTE`, because the ledger would silently stop
-matching the code.
+with for a reason no retry fixes is `blocked`, the same way. A `tracker` `FAIL` is not one of
+those: it goes in `TRACKER_PENDING`.
 
 ## Memory
 
@@ -186,8 +202,9 @@ INTERFACES: <the code-writer's INTERFACES line>
 FILES_OUTSIDE: <paths outside the ticket's list, or none>
 RULINGS: <your Ruling: lines, or none>
 RESOURCE_PROBES: <probe name and command per resource outcome, or none>
+TRACKER_PENDING: <each tracker write that failed, as its OP block, or none>
 NOTE: <one line: what failed and what is needed, or the question for a ruling>
 ```
 
-`SUBMITTED` is the stop after step 6, while the merger works; the orchestrator does nothing
-with it.
+`SUBMITTED` is the stop after step 6, with the `READY` block under it. The orchestrator
+relays that block to the merger and does nothing else with it.

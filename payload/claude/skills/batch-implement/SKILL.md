@@ -53,6 +53,17 @@ waves. When the tickets don't settle something, decide it and log
 - the merger stopping with `FAIL`: it holds every task it hasn't answered until you send it
   `CONTINUE`
 
+**Never override the weakened-tests gate.** No ruling lets the merger accept a test that
+`weakened-tests.sh` flags, even when the spec calls for the rename or deletion. The owner keeps
+the old test title with a body that asserts the new truth, and the gate passes as it is. An
+override reads as a CI bypass to a permission classifier, which then denies every later step
+toward that merge. Never edit your own permission settings to get past a denial either: give
+the operator the rule to add.
+
+**Check every sha before acting on it.** `git cat-file -t <sha>` must print `commit` for each
+`RED` and `TASK_HEAD` an agent reports. Agents have reported full shas with the right prefix
+and a wrong tail.
+
 ## 1. Load the work
 
 | Input | Tasks |
@@ -76,7 +87,9 @@ time with `printf '%s
 **Resuming in a new session.** If the run log exists, the earlier run's agents are gone. A task
 with a `done`, `failed` or `blocked` line keeps it. A task in the doing status with none of
 those starts over — remove any worktree and branch from its earlier attempt
-(`git worktree list`) — and that doesn't use up its retry. Start a new merger (2.6).
+(`git worktree list`) — and that doesn't use up its retry. A task whose `Merge <KEY>` commit is
+on the epic branch but has no `done` line isn't restarted: gate the epic head, push, and have
+`tracker` move it to done. Start a new merger (2.6).
 
 **After compaction in the same session,** the agents are still running: restart nothing. The
 run log's `agents:` lines give you back the merger's id and each owner's; trust the run log and
@@ -96,9 +109,15 @@ run log's `agents:` lines give you back the merger's id and each owner's; trust 
    `git worktree add .claude/worktrees/<KEY> -b <epic branch> origin/HEAD`), then
    `EnterWorktree` into it.
 4. **Check the base setting:** `.claude/settings.json` must set `worktree.baseRef` to `head`,
-   or agents branch from the default branch and miss earlier tasks. Stop if it's missing.
+   or agents branch from the default branch and miss earlier tasks. Stop if it's missing. Even
+   when set, `head` is the orchestrator's head: if you don't sit in the epic worktree it
+   resolves to the default branch, so owners have their agents check their base (ticket-owner,
+   Base check).
 5. **Baseline.** Run setup, the full suite and lint. Log the results with the head sha. Red
-   means stop: later failures can't be attributed.
+   means stop: later failures can't be attributed. Once green, if the config's `## Local app`
+   sets a command, start it in the background from the epic worktree, so each merge shows up
+   live for the operator. Restart it (after setup) when a merge changes a dependency manifest,
+   lockfile or build config, or the page goes stale.
 6. **Start the merger.** Dispatch `epic-merger` as `<epic key>-merger` with the epic branch,
    the run id, the setup, full-suite and lint commands, and the test paths. Append
    `agents: <epic key>-merger <id>` to the run log. It stops with `STARTED`; a `FAIL` means stop
@@ -120,23 +139,28 @@ the task's tier (`small` | `standard` | `complex` from its `## Tier` section; a 
 none is `standard`, and one labelled `complex` is `complex`), the run id and epic branch, the
 setup, named-tests, full-suite and lint commands, the config's test paths, that tier's models
 and the retry model (per the config's Tiers table), any interface correction from an earlier
-owner's `INTERFACES`, and the merger's id.
+owner's `INTERFACES`. Never the merger's id: only you message the merger. An agent in an
+isolated worktree that resumes it leaves it isolated there, unable to run git in the epic
+worktree.
 
-From here each owner moves its ticket, proves red, gates its branch and hands it to the
-merger; the merger merges one task at a time and gates the epic head after each merge. You
+From here each owner moves its ticket, proves red, gates its branch and hands it to you for
+the merger; the merger merges one task at a time and gates the epic head after each merge. You
 don't repeat their checks.
 
 **c. Act on the reports.** Owners and the merger each stop with a short block. Act only on:
 
 | Report | You |
 |---|---|
+| Owner `SUBMITTED` | Check the `READY` block's shas (above). Relay it to the merger unchanged, with one line added: `OWNER: <the owner's id>`. A bad sha goes back to the owner instead |
 | Owner `NEEDS_RULING` | Decide it, log `Ruling: <decision> — <why> — <cost if wrong>`, and `SendMessage` the answer to the owner. If it needs the operator, it's one of the stop-and-ask cases above |
 | Owner `MERGED_PENDING_RESOURCE` | Run its `RESOURCE_PROBES`, one at a time across the whole run, with the configured runner, at the merge sha — from a throwaway `git worktree add --detach`, because the merger keeps merging in the epic worktree meanwhile. Keep the output in the run log. Pass: message the owner `RESOURCE PASSED` with the output tail. Fail: message the merger `REVERT <key> <merge sha>`, wait for its `REVERTED` line, then message the owner `RESOURCE FAILED` with the output |
-| Owner `DONE`, `FAILED`, `BLOCKED` | Record it, then fill the free slot (a). A failed or blocked task's dependents wait; everything else continues. A `BLOCKED` whose note is a `tracker` failure is a stop-and-ask case |
+| Owner `DONE`, `FAILED`, `BLOCKED` | Record it, then fill the free slot (a). A failed or blocked task's dependents wait; everything else continues. Dispatch `tracker` with any `TRACKER_PENDING` writes; if they fail again, that is a stop-and-ask case |
+| Merger `REVERTED <KEY>` whose failing tests are all in files the task didn't touch and doesn't import | Rerun the full suite at the merge sha from a throwaway `git worktree add --detach`. Green means a false positive: message the merger `REMERGE <KEY> <revert sha>` with `OWNER: <id>`. The re-merge doesn't use the task's retry |
 | Merger `FAIL: …; holding …` | Stop and ask. Once the operator has fixed it, message the merger `CONTINUE`; the held owners are still waiting and need nothing from you |
 
-Everything else — an owner's `SUBMITTED`, the merger's `MERGED` / `REJECTED` / `CONFLICT` /
-`REVERTED` lines — is for the log; the owner already has it and handles its own retry.
+Everything else — the merger's `MERGED` / `REJECTED` / `CONFLICT` and other `REVERTED` lines —
+is for the log; the owner already has it and handles its own retry. A flake that forces reruns
+is fixed at its cause (`.claude/workflow/testing.md`, "Pass under load"), not rerun again.
 
 **d. Inline instead** when the whole run is one task: skip the owner and the merger, and do
 every role yourself, in order, in the epic worktree (or the current branch for quoted
@@ -161,22 +185,23 @@ tracker.
 
 Once every owner has reported and the merger has answered every `READY`, the merger is idle and
 you may commit and push on the epic branch yourself. Final-review fixes (step 2) go back through
-it, so write the development record after they land.
+it, so refresh the knowledge layer and write the development record after they land.
 
 1. **Full gates** at the epic head.
 2. **Final review.** If config sets a level, run `/code-review <level>`; fix only correctness
    findings, test-first: one `ticket-owner` per fix, dispatched with a slug instead of a ticket
    key, through the same merger. In an inline run, fix them inline.
-3. **Development record.** Append an Outcome section to the epic's `docs/decisions/` entry, or
+3. **Knowledge refresh.** Only when the config's `## Project knowledge` section is `Mode: on`.
+   Run `/knowledge-layer refresh` against the epic head. Approve its cited lines (terms,
+   modules, paths, overlaps) as a ruling; What this repo is, Invariants and Pitfalls stay as
+   they are. A doubt about them, or a blocker whose answer was already an Invariant, goes in
+   the PR body for the operator. Commit the result on the epic branch. Do not edit those
+   files yourself: a line the operator did not write is the kind that measures worse than no
+   line at all.
+4. **Development record.** Append an Outcome section to the epic's `docs/decisions/` entry, or
    create one per `docs/decisions/README.md`: what was built, where it departed from the spec,
    and why. Use `Edit` to append and `Write` to create, not a heredoc
    (`.claude/workflow/writing-files.md`). Commit it.
-4. **Knowledge gaps.** Only when the config's `## Project knowledge` section is `Mode: on`.
-   From this run, name what the layer was missing: a term two or more tasks used that
-   `CONTEXT.md` does not define, a file every task touched that Standing overlaps does not
-   name, a blocker whose answer was already an Invariant. Put the list in the PR body and tell
-   the operator to run `/knowledge-layer refresh`. Do not edit those files yourself: a line the
-   operator did not write is the kind that measures worse than no line at all.
 5. **Curate the agents' memory.** Dispatch `memory-curator` as `<epic key>-memory` with the
    epic worktree's path, the epic branch and the run log's path, and wait for its report.
    Agents added lessons to their memory during the run (`.claude/workflow/agent-memory.md`).
@@ -187,6 +212,6 @@ it, so write the development record after they land.
    verified, and an **Agent memory** section: the curator's `CHANGED` lines, its
    `PROJECT_MD_CANDIDATES` (for the operator to add to `project.md` or drop), and its
    `UPSTREAM_FIXES`. Then have `tracker` move the epic to the review status and comment the PR
-   URL.
+   URL. Stop the local app if you started one.
 7. **Report:** the PR URL, done / failed / blocked counts, and every `Ruling:` line — those are
    the decisions you made on the operator's behalf.

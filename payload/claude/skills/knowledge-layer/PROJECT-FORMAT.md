@@ -81,9 +81,10 @@ task (arXiv 2602.11988), charged on every task whether the file earned it or not
 ## Growing it
 
 Add a line when an agent got something wrong that this file would have prevented. Delete a line
-when the convention changes. `/batch-implement` reports `Knowledge gaps` at the end of an epic
-for exactly this: a term two tasks used that the glossary lacks, a file every task touched that
-is not a standing overlap, a blocker whose answer was already an invariant.
+when the convention changes. `/batch-implement` runs `/knowledge-layer refresh` at the end of an
+epic for exactly this: it adds a term two tasks used that the glossary lacks and a file every
+task touched that is not a standing overlap, and puts a blocker whose answer was already an
+invariant in the PR body for you.
 
 That loop is the part with evidence behind it. Guidance tuned against observed agent failures
 outperforms one-shot generation (arXiv 2606.20512); a file that is written once and never
