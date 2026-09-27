@@ -30,6 +30,9 @@ A test here exists to prove one outcome from the ticket, and to fail when that o
   asserting outputs, files and exit codes. Grepping its source proves nothing.
 - **Test-only code lives in test utilities**, never as methods on production classes.
 - **One outcome per test.** An "and" in the name means two tests.
+- **Pass under load.** Several agents run suites on one host at once. Wait for async results
+  (an awaited query, not a synchronous one that races the render), and size a slow test's
+  timeout for that load. Fix a flake at its cause; a rerun only hides it.
 
 ## Red, then green
 

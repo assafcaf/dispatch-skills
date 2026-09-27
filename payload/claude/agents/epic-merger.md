@@ -26,19 +26,25 @@ you.
 
 ## A `READY <KEY>` message
 
-Handle one message at a time, in the order they arrive. Reply to its `from` address; that is
-the task's owner, and it waits for your reply however long it takes.
+Only the orchestrator messages you. It relays each owner's `READY` with an `OWNER: <id>` line:
+an agent in an isolated worktree that resumed you would leave you isolated in its worktree,
+where git can't reach the epic worktree. Handle one message at a time, in the order they
+arrive. Reply to its `OWNER` address; that owner waits for your reply however long it takes.
 
-1. **Re-check, independently of the owner.** With `BASE = git merge-base <TASK_HEAD> HEAD` — the
-   point the task's branch left the epic, whatever has merged or reverted since — both must
-   hold:
+1. **Re-check, independently of the owner.** `git cat-file -t` must print `commit` for both
+   `RED` and `TASK_HEAD`; agents have reported full shas with the right prefix and a wrong
+   tail. If not, reply `REJECTED <KEY>` naming the sha. Then, with
+   `BASE = git merge-base <TASK_HEAD> HEAD` — the point the task's branch left the epic,
+   whatever has merged or reverted since — both must hold:
    - `git diff --name-only <RED> <TASK_HEAD> -- <test paths>` is empty;
    - `bash .claude/workflow/bin/weakened-tests.sh <BASE> <TASK_HEAD>` passes.
    Otherwise reply `REJECTED <KEY>` with the output. Nothing was merged.
 2. **Merge.** `git merge --no-ff -m "Merge <KEY>: <GOAL>" <TASK_HEAD>`. On conflict:
    `git merge --abort` and reply `CONFLICT <KEY>` with the conflicting paths.
 3. **Gate the epic head.** If the merge changed a dependency manifest or lockfile, run setup
-   first. Then the full suite and lint. If either is red,
+   first. Then the full suite and lint. If the suite fails only in test files the task didn't
+   touch and doesn't import, run it once more before deciding: parallel agents load the host,
+   and a timing flake is not this merge's red. If either is still red,
    `git revert -m 1 --no-edit <merge sha>`, check the suite is green again, and reply
    `REVERTED <KEY>` with the failing output. Every earlier merge passed this gate, so the red
    belongs to this one.
@@ -46,13 +52,20 @@ the task's owner, and it waits for your reply however long it takes.
    Holding) — an owner told `MERGED` would mark its ticket done on a merge nobody else can see.
 5. **Reply** `MERGED <merge sha>` with the suite and lint one-line results.
 
-Then stop with one line: `MERGED <KEY> <sha7>`, `REJECTED <KEY>`, `CONFLICT <KEY>` or
-`REVERTED <KEY>`. The orchestrator gets that line as a notification and acts on none of them.
+Then stop with the same result as one line: `MERGED <KEY> <sha7>`, `REJECTED <KEY>`,
+`CONFLICT <KEY>` or `REVERTED <KEY>` with the failing test files. That line is the
+orchestrator's.
 
 ## A `REVERT <KEY> <merge sha>` message
 
 From the orchestrator, when a serial-resource outcome failed after the merge. Revert it, gate
 as in step 3, push, reply `REVERTED <KEY> at <new head sha7>`, and stop with the same line.
+
+## A `REMERGE <KEY> <revert sha>` message
+
+From the orchestrator, when a revert turned out to be a false positive. Re-merge with
+`git revert --no-edit <revert sha>`, gate as in step 3, push, reply `MERGED <sha>` to the
+`OWNER` the message names, and stop with `MERGED <KEY> <sha7>`.
 
 ## Holding
 

@@ -135,6 +135,15 @@ database. None are configured.
 |---|---|---|
 | `<tag>` | `<what needs it>` | `<command that runs a test there, and how to check it's free>` |
 
+## Local app
+
+None. Optional: set the command that serves the app in dev mode with hot reload, and
+`/batch-implement` runs it from the epic worktree during a run, so each merge shows up live.
+
+| Command | URL |
+|---|---|
+| `<dev server command>` | `<where to open it>` |
+
 ## Execution
 
 - **Branches:** epic branch `epic/<KEY>-<slug>`, in worktree `.claude/worktrees/<KEY>`.
