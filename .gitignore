@@ -3,3 +3,7 @@ __pycache__/
 node_modules/
 dist/
 *.egg-info/
+.work/
+.claude/worktrees/
+CLAUDE.local.md
+.claude/settings.local.json
