@@ -1,0 +1,46 @@
+{
+  "worktree": {
+    "baseRef": "head"
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git status *)",
+      "Bash(git diff *)",
+      "Bash(git log *)",
+      "Bash(git show *)",
+      "Bash(git rev-parse *)",
+      "Bash(git fetch *)",
+      "Bash(git branch --show-current)",
+      "Bash(git branch -d *)",
+      "Bash(git worktree list *)",
+      "Bash(git worktree add *)",
+      "Bash(git worktree remove *)",
+      "Bash(git add *)",
+      "Bash(git commit *)",
+      "Bash(git cherry-pick *)",
+      "Bash(git merge *)",
+      "Bash(git revert *)",
+      "Bash(git restore -- .claude/agent-memory)",
+      "Bash(git push origin *)",
+      "Bash(git push -u origin *)",
+      "Bash(gh pr create *)",
+      "Bash(gh pr view *)",
+      "Bash(gh pr checks *)",
+      "Bash(bash .claude/workflow/bin/verify-red.sh *)",
+      "Bash(bash .claude/workflow/bin/weakened-tests.sh *)"
+    ],
+    "deny": [
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git stash *)",
+      "Bash(git reset --hard *)",
+      "Bash(git push --force *)",
+      "Bash(git push -f *)",
+      "Bash(git branch -D *)",
+      "Bash(git push origin main*)",
+      "Bash(git push origin HEAD:main*)",
+      "Bash(git push origin master*)",
+      "Bash(git merge origin/main*)"
+    ]
+  }
+}
