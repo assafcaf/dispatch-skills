@@ -125,6 +125,31 @@ worked example (0 passed, 1 real failure, 2 nothing ran); adapt its output-match
 runner you actually have rather than reusing vitest's wording. `/setup-workflow`'s stack step
 checks which case you're in.
 
+## Git moves
+
+The git commands the workflow's agents run, one per capability, each in the form this repo's
+settings allow. `bash .claude/workflow/bin/check-moves.sh` proves every row against the
+effective settings (`~/.claude/settings.json`, `.claude/settings.json`,
+`.claude/settings.local.json`): a command must match an allow rule and no deny rule, since one
+that matches neither would stop the run on a prompt. A failing row prints the allow rule to add.
+`<sha>`, `<branch>` and `<path>` stand for any value.
+
+| Capability | Command |
+|---|---|
+| `branch-from-epic-head` | `git switch -c <branch> <sha>` |
+| `move-onto-sha` | `git reset --hard <sha>` |
+| `take-red` | `git merge --ff-only <sha>` |
+| `rebase-red` | `git rebase <sha>` |
+| `discard-changes` | `git checkout -- <path>` |
+| `set-aside-work` | `git stash push -u` |
+| `try-merge` | `git merge --no-ff --no-commit <branch>` |
+| `abort-merge` | `git merge --abort` |
+| `commit-merge` | `git commit --no-edit` |
+| `revert-merge` | `git revert -m 1 <sha>` |
+| `push-epic` | `git push origin <branch>` |
+| `remove-worktree` | `git worktree remove <path>` |
+| `delete-merged-branch` | `git branch -d <branch>` |
+
 ## Serial resources
 
 Outcomes tagged with a resource run one task at a time, by the orchestrator, after merge. Use
