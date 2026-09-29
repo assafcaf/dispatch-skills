@@ -32,7 +32,7 @@ def _find_bash() -> str:
                     return str(candidate)
     bash = shutil.which("bash")
     if not bash:
-        pytest.skip("bash is not available")
+        raise RuntimeError("bash is not available: install it or set PAD_BASH")
     return bash
 
 
