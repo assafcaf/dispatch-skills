@@ -156,18 +156,27 @@ Outcomes tagged with a resource run one task at a time, by the orchestrator, aft
 this for anything the host can't provide or can't share: a GPU machine, a device, a staging
 database. None are configured.
 
-| Tag | Meaning | How to run |
-|---|---|---|
-| `<tag>` | `<what needs it>` | `<command that runs a test there, and how to check it's free>` |
+Each resource has a class. `automated`: the orchestrator runs the command and reads the result
+itself. `operator-run`: only a person can run it (a real session, a device); the orchestrator
+does not run it but writes a review packet for the operator, and the outcome waits on that.
 
-## Local app
+| Tag | Class | Meaning | How to run |
+|---|---|---|---|
+| `<tag>` | `automated` or `operator-run` | `<what needs it>` | `<command that runs a test there, and how to check it's free>` |
 
-None. Optional: set the command that serves the app in dev mode with hot reload, and
-`/batch-implement` runs it from the epic worktree during a run, so each merge shows up live.
+## Surfaces
 
-| Command | URL |
-|---|---|
-| `<dev server command>` | `<where to open it>` |
+The places where the product is seen or used. Optional; none are configured.
+
+| Surface | Entry point | Test drives it by | Person looks by | Automated check | Preview start | Ready when | Restart when changed | Cannot show |
+|---|---|---|---|---|---|---|---|---|
+| `<name>` | `<url, command or file>` | `<how a test drives it>` | `<how a person looks>` | `<command>` | `<dev server command>` | `<signal it is up>` | `<paths that need a restart>` | `<what it cannot show>` |
+
+## Review
+
+- **Cadence:** `after-first-wave`. When the operator reviews the running product. Options:
+  `after-first-wave` (once, after the first wave merges), `per-wave` (after every wave),
+  `end-only` (once, before the PR), `none`.
 
 ## Execution
 

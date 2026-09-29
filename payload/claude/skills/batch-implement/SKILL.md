@@ -114,8 +114,8 @@ run log's `agents:` lines give you back the merger's id and each owner's; trust 
    resolves to the default branch, so owners have their agents check their base (ticket-owner,
    Base check).
 5. **Baseline.** Run setup, the full suite and lint. Log the results with the head sha. Red
-   means stop: later failures can't be attributed. Once green, if the config's `## Local app`
-   sets a command, start it in the background from the epic worktree, so each merge shows up
+   means stop: later failures can't be attributed. Once green, if a row of the config's `## Surfaces`
+   sets a `Preview start` command, start it in the background from the epic worktree, so each merge shows up
    live for the operator. Restart it (after setup) when a merge changes a dependency manifest,
    lockfile or build config, or the page goes stale.
 6. **Start the merger.** Dispatch `epic-merger` as `<epic key>-merger` with the epic branch,
