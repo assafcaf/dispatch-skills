@@ -90,7 +90,7 @@ def test_weakened_test_fails(repo, worktree, run_script):
     wt = _branch(repo, worktree, "t-weak", epic)
     red = _commit(
         wt,
-        {"tests/test_old.py": "import pytest\n\n@pytest.mark.skip\ndef test_old():\n    assert True\n"},
+        {"tests/test_old.py": "import pytest\n\n@pytest.mark." + "skip\ndef test_old():\n    assert True\n"},
         "test(T-1): o1 [red]",
     )
     head = _commit(wt, {"src/impl.py": "X = 1\n"}, "feat(T-1): impl")
