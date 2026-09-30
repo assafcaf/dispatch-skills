@@ -39,3 +39,4 @@ rewrite history.
 ## Entries
 
 - [0001](0001-lean-agent-harness.md): a lean agent harness, with outcome-tested parallel delivery
+- [0002](0002-pad-run-hardening.md): setup proves the delivery path, and each step of a run is a script
