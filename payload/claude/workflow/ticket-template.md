@@ -11,7 +11,7 @@ One sentence: what a user of the code can do after this task that they couldn't 
 - [O2] ...
 
 ## Tier
-small | standard | complex — one word, then one line saying why.
+`<tier> — <signal>: <why>`, where tier is small | standard | complex, signal is the observable fact that decided it, and why is one clause.
 
 ## Files
 Likely touched, one per line. Mark an edit that rewrites existing code (not just adds to it)
@@ -47,5 +47,7 @@ should not pay for a large one's safeguards.
 | `small` | One outcome (two at most), about 1–3 files, extends a pattern the code already has — a field, a prop, a rule, a copy change — and produces no interface another task consumes | One `code-writer` in solo mode writes the red commit, then the green one. Red is still proven by `verify-red.sh`, and `merge-task.sh` still checks that no test was weakened. The ticket moves only to doing and to done |
 | `standard` | The default: one to three outcomes, a new module or behaviour that follows known patterns | A `test-designer` writes the red commit, and a separate `code-writer` makes it pass |
 | `complex` | Design judgment across modules, a new interface other tasks consume, persistence or migration, concurrency, or a serial resource | As `standard`, on the stronger models and with a wider reading brief |
+
+Judge the tier from four signals: files touched, interfaces changed, outcome count, and standing overlap (files another task in the epic also rewrites). The table's "When" column is keyed by them.
 
 When unsure between two tiers, take the larger. The models per tier are in `config.md`.
