@@ -118,3 +118,33 @@ def test_o43_a_missing_or_non_numeric_n_is_refused_without_a_suggestion(run_scri
     result = run_script(SCRIPT, *args, "--", "true", cwd=tmp_path)
     assert result.returncode not in (0, 1), (result.returncode, result.stderr)
     assert "SUGGEST" not in result.stdout, result.stdout
+
+
+VITEST_SUITE = r"""#!/usr/bin/env bash
+d="$1"
+mkdir -p "$d/active"
+touch "$d/active/$$"
+sleep 3
+n=$(ls "$d/active" | wc -l)
+rc=0
+printf ' \033[32m✓\033[39m src/ok.test.ts (2 tests) 12ms\n'
+if [ "$n" -gt 1 ]; then
+  printf ' \033[31m❯\033[39m src/dial.test.ts (3 tests | 1 failed) 40ms\n'
+  printf '\033[41m\033[1m FAIL \033[22m\033[49m src/dial.test.ts\033[2m > \033[22mdial\033[2m > \033[22mturns under load\n'
+  rc=1
+fi
+rm -f "$d/active/$$"
+exit $rc
+"""
+
+
+def test_o43_vitest_fail_lines_are_read_as_load_only_failures(run_script, tmp_path):
+    """vitest prints ` FAIL  <file> > <suite> > <test>` (in colour) rather than pytest's FAILED."""
+    suite = tmp_path / "vitest-suite.sh"
+    suite.write_text(VITEST_SUITE, encoding="utf-8", newline="\n")
+    state = tmp_path / "vitest-state"
+    result = run_script(SCRIPT, "2", "--", BASH, suite.as_posix(), state.as_posix(), cwd=tmp_path)
+    out = out_lines(result)
+    assert "LOAD-ONLY FAILURES: src/dial.test.ts > dial > turns under load" in out, result.stdout
+    m = SUGGEST.match(out[-1]) if out else None
+    assert m and int(m.group("slots")) == 1, result.stdout
