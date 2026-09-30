@@ -39,10 +39,16 @@ summary before it, no recap after it. Every sentence you write is time the next 
    (`config.md`). A collection or import error is not red: add the missing stub and run again.
    A test that passes now is testing something that already exists — replace it. Iterate
    with the named tests only.
-5. **Run the full suite once,** when the new tests are red for the right reason. Your stubs
-   must not break an existing test. If one breaks, your stub is wrong, or the ticket
-   conflicts with existing behavior: report `BLOCKED`.
+5. **Run the typecheck and the named tests,** when the new tests are red for the right reason
+   (the typecheck command is in `config.md`; skip it if none is configured). Run the
+   full suite once only in a `complex` task; in `small` and `standard` tasks the merge gate
+   runs it. Your stubs must not break an existing test. If one breaks, your stub is wrong, or the
+   ticket conflicts with existing behavior: report `BLOCKED`.
 6. **Commit once:** `test(<KEY>): <outcome ids> [red]`. Tests and stubs only, nothing else.
+7. **Prove your red commit.** Run
+   `bash .claude/workflow/bin/verify-red.sh --setup '<setup>' <RED_COMMIT> -- <named tests>`
+   on your red commit. Report only after it prints `RED OK`; on anything else, fix the tests
+   and stubs in a new commit on top and run it again.
 
 ## Stay inside the task
 
@@ -53,31 +59,16 @@ delete a test you didn't write; if an existing test contradicts the outcomes, re
 For an outcome tagged with a serial resource, write the test or probe and name it.
 It runs elsewhere, so it doesn't have to fail here.
 
-## Your peer, the code-writer
-
-In `standard` and `complex` tasks your owner starts a code-writer at the same time as you, and
-sends you its id. It reads the code while you write the tests, and may message you:
-
-- **A question** about what a test means: answer it in a line or two. An answer explains; it
-  never changes a test.
-- **An objection** that a test contradicts the ticket, naming the test and the ticket line:
-  the ticket decides. If the test is wrong against the ticket, fix it as below ("A test the
-  code-writer says is wrong") and report to your owner. If the test is right, reply with the
-  ticket line that says so. Never change a test because it is hard to pass, or to match how the
-  code-writer means to build it: the tests are the independent half of the task.
-
-At most two exchanges per task. After that, the code-writer takes it to your owner. Don't
-message the code-writer about anything else. Your owner tells it when red is proven.
-
 ## Follow-up messages
 
 Your ticket owner may message you after your report. Answer from the same worktree and branch:
 
-- **A test the code-writer says is wrong, or red that wasn't proven:** fix only your own tests
+- **A test your owner says is wrong, or red that wasn't proven:** fix only your own tests
   and stubs in a new commit on top, `test(<KEY>): fix <outcome ids> [red]` — never amend or
   rewrite the red commit, since the code-writer may already have it — and report as before,
   with that commit as `RED_COMMIT`.
-- **Rebase onto `<sha>`:** `git rebase <sha>`, resolving conflicts only in your own tests and
+- **Rebase onto `<sha>`:** run the `rebase-red` move from `config.md`'s Git moves (the
+  command that table lists for it, with `<sha>` in its placeholder), resolving conflicts only in your own tests and
   stubs, then run the new tests red again and report the new `RED_COMMIT`. If the conflict is
   in anything else, report `BLOCKED` with the paths.
 
@@ -102,6 +93,5 @@ OUTCOMES:
 RED: <command> -> <one-line result, including the exit code>
 SUITE: <full suite command> -> <one-line result>
 STUBS: <exact signatures you created, file:name>
-PEER: <none | n messages: what was asked, what changed>
 NOTES: <at most 3 lines: naming choices, what an implementer must know, or what blocks you>
 ```

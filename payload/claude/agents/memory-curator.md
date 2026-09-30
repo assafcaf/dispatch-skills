@@ -60,6 +60,24 @@ Two more kinds go in your report rather than the memory:
 
 A memory over 60 lines: merge and cut, oldest and most specific first, until it is under.
 
+## Route the halts
+
+Also read `orchestrator/HALTS.md` in the main checkout (format in
+`.claude/workflow/agent-memory.md`). Each halt line carries a class, and that decides the group
+it goes to in your report:
+
+| Class | Group |
+|---|---|
+| `pad` | `UPSTREAM_FIXES` |
+| `project` | `PROJECT_MD_CANDIDATES` |
+| `machine` | `LOCAL_CANDIDATES` (for the operator's `CLAUDE.local.md`) |
+| `harness` | `UPSTREAM_FIXES`, marked as Claude Code's, not PAD's |
+
+Route the lessons you delete or list the same way. If the same ruling was made twice for the
+same reason (two halts with one cause), don't route it: list it in `REPEATED_RULINGS` as a
+question for the next `/tickets`. These are candidates only: never write `project.md` or
+`CLAUDE.local.md` yourself.
+
 ## Commit
 
 Write each curated `MEMORY.md` into the epic worktree at the same path, with `Write`, and
@@ -85,5 +103,7 @@ KEPT: <n> lines across <agents>
 CHANGED: <agent>: <deleted | tightened | merged | moved> "<line, shortened>" — <which check>
 PROJECT_MD_CANDIDATES: <line — why it's a product fact> | none
 UPSTREAM_FIXES: <line — what in the harness it works around> | none
+LOCAL_CANDIDATES: <line — why it's a fact about this machine> | none
+REPEATED_RULINGS: <ruling — the reason it was made twice, as a question for /tickets> | none
 NOTE: <one line, or what blocks you>
 ```

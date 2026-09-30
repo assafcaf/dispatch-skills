@@ -131,6 +131,12 @@ done
 install_file "claude/statusline.py" ".claude/statusline.py"
 
 say ""
+say "Workflows -> .claude/workflows/"
+for f in $(cd "$SRC" && find claude/workflows -type f | sort); do
+  install_file "$f" ".${f}"
+done
+
+say ""
 say "Development record -> docs/decisions/"
 install_once "docs/decisions/README.md" cat "$SRC/docs/decisions/README.md"
 
@@ -151,12 +157,14 @@ default_gh_repo() {
 }
 
 render_config() {
+  local pad_version
+  pad_version="$(tr -d '' < "$SRC/claude/workflow/VERSION" | head -n 1 | tr -d '[:space:]')"
   # `|` as the sed delimiter, because every one of these can contain a slash.
   sed -e "s|<TRACKER>|${tracker}|g" \
       -e "s|<JIRA_SITE>|${jira_site:-<your-site>}|g" \
       -e "s|<JIRA_CLOUD_ID>|${jira_cloud:-<your-cloud-id>}|g" \
       -e "s|<GH_REPO>|${gh_repo:-<owner>/<repo>}|g" \
-      -e "s|<KEY>|${key:-PROJ}|g" \
+      -e "s|<KEY>|${key:-PROJ}|g"       -e "s|<PAD_VERSION>|${pad_version}|g" \
       "$SRC/claude/workflow/config.example.md"
 }
 

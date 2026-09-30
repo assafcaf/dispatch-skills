@@ -6,6 +6,12 @@ installer wrote this from your answers; `/setup-workflow` fills in what it can d
 (statuses, transition ids, the commands that actually run here) and checks the rest. After
 that it is yours: edit it when the project changes.
 
+PAD version: <PAD_VERSION>
+
+<!-- Section manifest: the `## ` headings below are the sections a config of this PAD version
+has. `bin/preflight.sh` fails when config.md lacks one, or records an older PAD version, and
+names `/setup-workflow upgrade`. -->
+
 ## Tracker
 
 - **Adapter:** `<TRACKER>`. Operations are in `.claude/workflow/trackers/<TRACKER>.md`; the
@@ -32,7 +38,6 @@ in the agent file.
 | Tracker | `tracker` | `haiku` | The only agent with tracker tools. Every ticket read and write goes through it |
 | Planning | `task-planner` | `sonnet` | Read-only. Runs once per `/batch-implement` run |
 | Task ownership | `ticket-owner` | `sonnet` | One per task. Runs the task's test-designer and code-writer, proves red, gates the branch, moves the ticket |
-| Merging | `epic-merger` | `sonnet` | One per run. The epic branch's only writer: re-checks, merges one task at a time, gates, pushes |
 | Tests | `test-designer` | `sonnet` | Its own worktree, dispatched by the ticket owner. Writes the failing tests and stubs |
 | Code | `code-writer` | `sonnet` | Its own worktree, dispatched by the ticket owner. Cherry-picks the red commit; may not change tests |
 | Knowledge scan | `knowledge-scanner` | `sonnet` | Read-only. Several at once, and only during `/knowledge-layer` |
@@ -53,11 +58,11 @@ A ticket with no `## Tier` section is `standard`; one labelled `complex` is `com
 
 **Thinking effort** is set in an agent file's `effort:` field, and a dispatch can't override it,
 so it can't follow a task's tier. The coordinators, whose work is the same in every task, have
-one: `ticket-owner` `medium` (it makes the occasional ruling), `epic-merger` `low`. The test
+one: `ticket-owner` `medium` (it makes the occasional ruling). The test
 and code agents inherit the session's effort; their tier brief ("Effort by tier") is what
 scales their reading and thinking.
 
-**Memory.** `test-designer`, `code-writer`, `ticket-owner`, `epic-merger` and `tracker` have
+**Memory.** `test-designer`, `code-writer`, `ticket-owner` and `tracker` have
 `memory: project`: each keeps lessons in `.claude/agent-memory/<agent>/MEMORY.md`, committed and
 loaded on every start. The rules are in `.claude/workflow/agent-memory.md`, and
 `memory-curator` enforces them at the end of each epic.
@@ -109,7 +114,10 @@ detects the real runner and fills this table in.
 | Setup in a fresh worktree | `pip install -e .` |
 | Run named tests | `python -m pytest -q {tests}` (`{tests}` = space-separated node ids) |
 | Full suite | `python -m pytest -q` |
+| Typecheck | `true` (none configured) |
 | Lint | `true` (none configured) |
+| Dependency directory | none (e.g. `node_modules`; `verify-red.sh --deps` links it instead of running setup) |
+| Lockfile | none (e.g. `package-lock.json`; setup runs again only when it changes from the base) |
 | Red means | exit code `1`: tests collected, ran, and failed. Collection errors (exit `2`) do not count |
 | Test paths | `tests/` |
 | Weakened tests | `bash .claude/workflow/bin/weakened-tests.sh <base> <head>` (pytest patterns by default; set `WEAK_ADDED` and `TEST_DEF` for another stack — see the script's header) |
@@ -125,32 +133,70 @@ worked example (0 passed, 1 real failure, 2 nothing ran); adapt its output-match
 runner you actually have rather than reusing vitest's wording. `/setup-workflow`'s stack step
 checks which case you're in.
 
+## Git moves
+
+The git commands the workflow's agents run, one per capability, each in the form this repo's
+settings allow. `bash .claude/workflow/bin/check-moves.sh` proves every row against the
+effective settings (`~/.claude/settings.json`, `.claude/settings.json`,
+`.claude/settings.local.json`): a command must match an allow rule and no deny rule, since one
+that matches neither would stop the run on a prompt. A failing row prints the allow rule to add.
+`<sha>`, `<branch>` and `<path>` stand for any value.
+
+| Capability | Command |
+|---|---|
+| `branch-from-epic-head` | `git switch -c <branch> <sha>` |
+| `move-onto-sha` | `git reset --hard <sha>` |
+| `take-red` | `git merge --ff-only <sha>` |
+| `rebase-red` | `git rebase <sha>` |
+| `discard-changes` | `git checkout -- <path>` |
+| `set-aside-work` | `git stash push -u` |
+| `try-merge` | `git merge --no-ff --no-commit <branch>` |
+| `abort-merge` | `git merge --abort` |
+| `commit-merge` | `git commit --no-edit` |
+| `revert-merge` | `git revert -m 1 <sha>` |
+| `push-epic` | `git push origin <branch>` |
+| `remove-worktree` | `git worktree remove <path>` |
+| `delete-merged-branch` | `git branch -d <branch>` |
+
 ## Serial resources
 
 Outcomes tagged with a resource run one task at a time, by the orchestrator, after merge. Use
 this for anything the host can't provide or can't share: a GPU machine, a device, a staging
 database. None are configured.
 
-| Tag | Meaning | How to run |
-|---|---|---|
-| `<tag>` | `<what needs it>` | `<command that runs a test there, and how to check it's free>` |
+Each resource has a class. `automated`: the orchestrator runs the command and reads the result
+itself. `operator-run`: only a person can run it (a real session, a device); the orchestrator
+does not run it but writes a review packet for the operator, and the outcome waits on that.
 
-## Local app
+| Tag | Class | Meaning | How to run |
+|---|---|---|---|
+| `<tag>` | `automated` or `operator-run` | `<what needs it>` | `<command that runs a test there, and how to check it's free>` |
 
-None. Optional: set the command that serves the app in dev mode with hot reload, and
-`/batch-implement` runs it from the epic worktree during a run, so each merge shows up live.
+## Surfaces
 
-| Command | URL |
-|---|---|
-| `<dev server command>` | `<where to open it>` |
+The places where the product is seen or used. Optional; none are configured.
+
+| Surface | Entry point | Test drives it by | Person looks by | Automated check | Preview start | Ready when | Restart when changed | Cannot show |
+|---|---|---|---|---|---|---|---|---|
+| `<name>` | `<url, command or file>` | `<how a test drives it>` | `<how a person looks>` | `<command>` | `<dev server command>` | `<signal it is up>` | `<paths that need a restart>` | `<what it cannot show>` |
+
+## Review
+
+- **Cadence:** `after-first-wave`. When the operator reviews the running product. Options:
+  `after-first-wave` (once, after the first wave merges), `per-wave` (after every wave),
+  `end-only` (once, before the PR), `none`.
 
 ## Execution
 
 - **Branches:** epic branch `epic/<KEY>-<slug>`, in worktree `.claude/worktrees/<KEY>`.
   `.claude/settings.json` must set `worktree.baseRef: head`, so implementer worktrees branch
   from the epic branch.
+- **Mode:** `owner`. How `/batch-implement` runs a task: `owner` (ticket-owner agents) or
+  `workflow` (the Workflow tool). `--mode` overrides it for one run.
 - **Parallelism:** at most `3` tasks (ticket owners) at once.
+- **Suite slots:** `2` — at most this many full-suite runs at once, through `bin/suite-slot.sh`;
+  a waiting merge gate goes first. `PAD_SUITE_SLOTS` overrides it.
 - **Final review:** `off`. Set to a `/code-review` level (`low`, `medium`, …) to run one
   review over the finished epic branch before the PR.
-- **Publishing:** the merger pushes the epic branch to `origin` after each merge, so tracker comments cite
+- **Publishing:** `merge-task.sh` pushes the epic branch to `origin` after each merge, so tracker comments cite
   fetchable commits. Open the epic PR as a draft. Never merge it.
