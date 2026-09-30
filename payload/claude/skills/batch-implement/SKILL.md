@@ -169,9 +169,12 @@ outcomes). Same gates, same run-log line, and the same tracker comments when the
 tracker.
 
 **e. Record each finished task** when its owner reports `DONE`, `FAILED` or `BLOCKED`.
-1. Append one line to the run log: the key, your rulings for it, and the owner's `INTERFACES`
-   and `FILES_OUTSIDE`. The owner has already appended its `<KEY>: done|failed|blocked`
-   line; don't repeat it.
+1. For a `DONE` task, run `.claude/workflow/bin/render-evidence.sh --run <id> --key <KEY>
+   --red <sha> --merge <sha> --outcomes "<O ids>" --red-result "<cmd -> result>"
+   --green-result "<cmd -> result>"`, adding `--files-outside "<paths>"` from the owner's
+   `FILES_OUTSIDE` and `--rulings "<text>"` for yours. It writes `<KEY>.md`, appends the run-log
+   line and prints the PR-table row; don't write those by hand. For `FAILED` or `BLOCKED`, one
+   `run-log.sh` line with the key, your rulings and the owner's `INTERFACES` is enough.
 2. Refresh the progress snapshot, unless the adapter is `local` — there the status line reads
    the ticket files directly and a snapshot would only go stale. Overwrite
    `.work/progress.json` in the **main checkout**, not this worktree
