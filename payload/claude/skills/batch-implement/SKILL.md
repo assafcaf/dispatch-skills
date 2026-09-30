@@ -258,6 +258,27 @@ with `resumeFromRunId` set to its run id and the same args plus `ruling: "<your 
 log the `Ruling:` line. The steps already completed replay from cache; only the step that asked
 and the rest run.
 
+## Review checkpoints
+
+Read `Cadence` under `## Review` in `.claude/workflow/config.md`: `after-first-wave`,
+`per-wave`, `end-only` or `none`. At each checkpoint the cadence names (after the first wave,
+after every wave, or never for `end-only` and `none`), write a review packet to
+`.work/runs/<id>/review-<n>.md`, with `<n>` counting up from 1. The packet lists:
+
+- what merged since the last checkpoint (task keys and merge shas);
+- the surfaces those tasks touched;
+- how to look at each surface: the command or URL to open it;
+- what is unverified: outcomes no gate or check covered;
+- what is operator-run: serial resources and live checks only the operator can do.
+
+Then send the operator a push notification saying the review packet is ready, using the same
+notification path as a parked question (above). A checkpoint does not stop the run: keep
+filling slots and running waves without stopping while the operator reads.
+
+Each finding the operator returns becomes a `fix-<slug>` task in the same run, with its own red
+red test first, and goes through `merge-task.sh` like any task. The final review at the end of the
+epic (step 4) is unchanged.
+
 ## 4. Finish the epic
 
 Once every owner has reported and no `merge-task.sh` is running, you may commit and push on the
