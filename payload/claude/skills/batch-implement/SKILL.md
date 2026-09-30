@@ -140,7 +140,12 @@ run log's `agents:` lines give you back each owner's id; trust the run log and
    when set, `head` is the orchestrator's head: if you don't sit in the epic worktree it
    resolves to the default branch, so owners have their agents check their base (ticket-owner,
    Base check).
-5. **Baseline.** Run setup, the full suite and lint. Log the results with the head sha. Red
+5. **Baseline.** Run setup, then `bash .claude/workflow/bin/preflight.sh` in the epic worktree.
+   It proves the setup still holds: git moves and every unattended command allowed, knowledge
+   paths resolve, config sections match the PAD version, dependency directory, agent models,
+   executable scripts, `.gitignore`. On `PREFLIGHT FAILED <n>`, stop before any wave and show
+   the operator its `PREFLIGHT FAIL` lines (an old PAD version names `/setup-workflow upgrade`).
+   Then run the full suite and lint. Log the results with the head sha. Red
    means stop: later failures can't be attributed. Once green, start each configured preview with
    `bash .claude/workflow/bin/preview.sh start --surface <name> --worktree <epic worktree>` (a
    surface with no `Preview start` is a no-op), so each merge shows up live for the operator. Don't
