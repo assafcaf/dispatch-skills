@@ -258,7 +258,8 @@ and the rest run.
 Once every owner has reported and no `merge-task.sh` is running, you may commit and push on the
 epic branch yourself. Final-review fixes (step 2) land through `merge-task.sh` like any task, so refresh the knowledge layer and write the development record after they land.
 
-1. **Full gates** at the epic head. Then stop each preview started at the baseline with
+1. **Full gates** at the epic head, then `bash .claude/workflow/bin/surface-checks.sh`: any
+   `SURFACES FAIL <surface>` line fails the gate. Then stop each preview started at the baseline with
    `bash .claude/workflow/bin/preview.sh stop --surface <name> --worktree <epic worktree>`, so it
    holds no file in the worktree.
 2. **Final review.** If config sets a level, run `/code-review <level>`; fix only correctness
