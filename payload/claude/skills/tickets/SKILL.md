@@ -29,7 +29,7 @@ Nothing is published before the operator approves the plan.
 
 - **Slice vertically.** Each task delivers one to three of the spec's outcomes end to end and
   is testable on its own. Never split by layer ("models", then "API", then "tests").
-- **Cover every outcome.** Each spec outcome lands in exactly one task. Setup, config and
+- **Cover every outcome.** Each spec outcome lands in exactly one task. A surface outcome (`level: surface <name>`) lands in exactly one task too; one no task owns is a GAP that blocks the plan. Setup, config and
   docs work goes inside the task whose outcome needs it.
 - **Declare files.** List the files each task will likely touch, and mark an edit that
   rewrites existing code rather than adding to it. Sharing a file is **not** a blocking edge:

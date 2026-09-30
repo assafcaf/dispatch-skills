@@ -66,7 +66,7 @@ Status: draft | approved   ·   Tracker: <epic key, once it exists>
 Who needs what, and why now. Three sentences at most.
 
 ## Outcomes
-- [O1] Given …, when …, then …. (level: unit | integration | <resource tag>)
+- [O1] Given …, when …, then …. (level: unit | integration | surface <name> | <resource tag>)
 
 ## Non-goals
 
@@ -80,10 +80,16 @@ Components, the interfaces between them (exact names), data flow, error handling
 What could make an outcome wrong, and how the plan finds out early.
 ```
 
+Each user-visible **capability** names the surface it appears on (a name from the config's
+`## Surfaces` section) and gets exactly one surface outcome: an outcome at
+`level: surface <name>` that a person or an automated check can see on that surface. One surface outcome per
+capability, no more, so one task can own it.
+
 Check it before showing it:
 - no TBD or TODO
 - no two sections contradict each other
 - every outcome is observable and names its level
+- every capability has exactly one surface outcome naming its surface; one without fails
 - every design element serves an outcome
 
 Then ask the operator to review the file. Iterate until they approve, then set
