@@ -178,8 +178,32 @@ Offer the sections in `.claude/workflow/claude-md-snippet.md` — how work flows
 writing rules — for the repo's `CLAUDE.md`. Show them, add only what the operator accepts, and
 keep each addition short: every line of `CLAUDE.md` loads into every session.
 
-## 8. Report
+## 8. Rehearsal
 
-One checklist. For anything unresolved, name the command the operator should run. Finish with
-the flow they can now use: `/spec` → `/tickets` → `/batch-implement`. Where the knowledge
-layer is on, say that `/knowledge-layer refresh` re-scans it when the repo moves.
+The closing step: run it after every other step, once the config and the harness are final.
+From the main checkout, with its work committed:
+
+```bash
+bash .claude/workflow/bin/rehearse.sh
+```
+
+It runs the mechanical delivery path in throwaway worktrees — move onto the epic head, a
+trivial red, `verify-red`, a trivial green, `task-submit`, `merge-task` into a throwaway epic
+branch (pushed, then deleted from `origin`), a preview restart of the configured surface, and a
+ledger write from a worktree to a temporary ticket — and prints `STEP <name> PASS|FAIL
+<detail>` for each. It removes every branch, worktree and ledger change it made, whether a step
+passed or not. The last line is `REHEARSAL OK` or `REHEARSAL FAILED <n>`.
+
+- `REHEARSAL OK`: the delivery path works on this machine. Setup is done.
+- `REHEARSAL FAILED <n>`: setup is **not** done. Quote each failing `STEP` line, fix what it
+  names (a permission rule, the preview command, an unreachable `origin`, a ledger path), and
+  run the rehearsal again. `rehearse.sh --keep` leaves the worktrees and branches for
+  inspection; remove them afterwards.
+
+## 9. Report
+
+One checklist, ending with the rehearsal result: quote its last line. Report setup as done only
+when the rehearsal printed `REHEARSAL OK`; on `REHEARSAL FAILED <n>`, report setup as not done
+and list the failing steps. For anything unresolved, name the command the operator should run.
+Finish with the flow they can now use: `/spec` → `/tickets` → `/batch-implement`. Where the
+knowledge layer is on, say that `/knowledge-layer refresh` re-scans it when the repo moves.
