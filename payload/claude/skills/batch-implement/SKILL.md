@@ -40,17 +40,43 @@ A `sleep`, an `echo`, or a status check while you wait re-reads your whole conte
 
 **Keep going without check-ins.** After the start confirmation, don't pause between tasks or
 waves. When the tickets don't settle something, decide it and log
-`Ruling: <decision> — <why> — <cost if wrong>`. Stop and ask only for:
+`Ruling: <decision> — <why> — <cost if wrong>`. Only these need the operator, as a question:
 - an irreversible action outside this flow
 - a security-sensitive action
 - changing shared state other than the epic branch and its tickets (`main`, a serial
   resource's current state, other tickets)
 - a baseline that is already red
-- every remaining task being blocked or failed
 - `tracker` reporting `FAIL`, or its tools being unavailable: the run's record would silently
   stop matching the code
 - the merger stopping with `FAIL`: it holds every task it hasn't answered until you send it
   `CONTINUE`
+
+**A question parks one task, not the run.** Send the operator a push notification with the
+task key and the question, and append it to the run log as `QUESTION <KEY>: <question>` with
+`bash .claude/workflow/bin/run-log.sh <run id> "QUESTION <KEY>: <question>"`. Then park only
+that task: its owner waits for your answer, and its dependents wait with it — they are not
+ready until it is done. A question that belongs to no one task (a red baseline, a `tracker`
+`FAIL`, a merger `FAIL`) uses the epic key and parks what it holds. Never call `AskUserQuestion`
+for a question: it blocks the whole session until someone answers.
+
+**Everything else keeps moving while a task is parked.** Keep dispatching ready tasks, relaying
+`SUBMITTED` reports and letting the merger merge them. The operator answers by typing into this
+session while it runs: log the answer as a `Ruling:` line, `SendMessage` it to the parked
+owner, which resumes from where it stopped, and fill any slot the unparked task's dependents
+open.
+
+**Pause only when nothing is runnable.** When every task left is parked, blocked, failed or
+waiting on one of those, and no owner or merge is still in flight, pause the whole run: send one more push
+notification saying the run is paused and which questions hold it, append `PAUSED: <keys>` to
+the run log, and end your turn. The next answer resumes the run.
+
+**Log every halt with `halt-log.sh`.** When you park a task, and when you pause the run, run
+`bash .claude/workflow/bin/halt-log.sh <run id> <KEY> <class> "<cause>" pending`, with `-` as
+the key for a run-wide pause. It appends one line to `.claude/agent-memory/orchestrator/HALTS.md`
+in the main checkout. The class names where the fix belongs: `pad` (this workflow), `project`
+(the product, its tickets or spec), `machine` (this host: a tool, a port, a permission rule) or
+`harness` (Claude Code itself). When the halt resolves, log a second line with the same run id,
+key, class and cause, and what unblocked it in place of `pending`.
 
 **Never override the weakened-tests gate.** No ruling lets the merger accept a test that
 `weakened-tests.sh` flags, even when the spec calls for the rename or deletion. The owner keeps
@@ -121,8 +147,8 @@ run log's `agents:` lines give you back the merger's id and each owner's; trust 
    lockfile or build config, or the page goes stale.
 6. **Start the merger.** Dispatch `epic-merger` as `<epic key>-merger` with the epic branch,
    the run id, the setup, full-suite and lint commands, and the test paths. Append
-   `agents: <epic key>-merger <id>` to the run log. It stops with `STARTED`; a `FAIL` means stop
-   and ask. There is one merger per session: the epic branch's `git log` is its whole state, so
+   `agents: <epic key>-merger <id>` to the run log. It stops with `STARTED`; a `FAIL` is a
+   question to the operator. There is one merger per session: the epic branch's `git log` is its whole state, so
    a new session starts a fresh one, and nothing else does.
 
 ## 3. Run waves until no task is left
@@ -153,11 +179,11 @@ don't repeat their checks.
 | Report | You |
 |---|---|
 | Owner `SUBMITTED` | Check the `READY` block's shas (above). Relay it to the merger unchanged, with one line added: `OWNER: <the owner's id>`. A bad sha goes back to the owner instead |
-| Owner `NEEDS_RULING` | Decide it, log `Ruling: <decision> — <why> — <cost if wrong>`, and `SendMessage` the answer to the owner. If it needs the operator, it's one of the stop-and-ask cases above |
+| Owner `NEEDS_RULING` | Decide it, log `Ruling: <decision> — <why> — <cost if wrong>`, and `SendMessage` the answer to the owner. If it needs the operator, it's a question (above): park the task |
 | Owner `MERGED_PENDING_RESOURCE` | Run its `RESOURCE_PROBES`, one at a time across the whole run, with the configured runner, at the merge sha — from a throwaway `git worktree add --detach`, because the merger keeps merging in the epic worktree meanwhile. Keep the output in the run log. Pass: message the owner `RESOURCE PASSED` with the output tail. Fail: message the merger `REVERT <key> <merge sha>`, wait for its `REVERTED` line, then message the owner `RESOURCE FAILED` with the output |
 | Owner `DONE`, `FAILED`, `BLOCKED` | Record it (3f) from the owner's report, then fill the free slot (a). A failed or blocked task's dependents wait; everything else continues |
 | Merger `REVERTED <KEY>` whose failing tests are all in files the task didn't touch and doesn't import | Rerun the full suite at the merge sha from a throwaway `git worktree add --detach`. Green means a false positive: message the merger `REMERGE <KEY> <revert sha>` with `OWNER: <id>`. The re-merge doesn't use the task's retry |
-| Merger `FAIL: …; holding …` | Stop and ask. Once the operator has fixed it, message the merger `CONTINUE`; the held owners are still waiting and need nothing from you |
+| Merger `FAIL: …; holding …` | A question (above): it parks the held tasks. Once the operator has fixed it, message the merger `CONTINUE`; the held owners are still waiting and need nothing from you |
 
 Everything else — the merger's `MERGED` / `REJECTED` / `CONFLICT` and other `REVERTED` lines —
 is for the log; the owner already has it and handles its own retry. A flake that forces reruns
@@ -188,7 +214,7 @@ and the tier. On an owner's report, record from its `LEDGER_COMMENT` line: `DONE
 task to `done`; `FAILED` and `BLOCKED` comment it and leave the status at `doing`. With the
 `local` adapter run `bash .claude/workflow/bin/ledger.sh <KEY> status <doing|done> "<comment>"`
 (or `ledger.sh <KEY> comment "<text>"`) from the epic worktree; with any other adapter,
-dispatch `tracker`. A `tracker` `FAIL` is a stop-and-ask case.
+dispatch `tracker`. A `tracker` `FAIL` is a question to the operator.
 
 ## 4. Finish the epic
 
