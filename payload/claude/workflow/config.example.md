@@ -185,6 +185,8 @@ The places where the product is seen or used. Optional; none are configured.
 - **Branches:** epic branch `epic/<KEY>-<slug>`, in worktree `.claude/worktrees/<KEY>`.
   `.claude/settings.json` must set `worktree.baseRef: head`, so implementer worktrees branch
   from the epic branch.
+- **Mode:** `owner`. How `/batch-implement` runs a task: `owner` (ticket-owner agents) or
+  `workflow` (the Workflow tool). `--mode` overrides it for one run.
 - **Parallelism:** at most `3` tasks (ticket owners) at once.
 - **Suite slots:** `2` — at most this many full-suite runs at once, through `bin/suite-slot.sh`;
   a waiting merge gate goes first. `PAD_SUITE_SLOTS` overrides it.
