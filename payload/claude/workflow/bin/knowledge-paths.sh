@@ -10,14 +10,15 @@
 #
 #   knowledge-paths.sh [--root <dir>]
 #
-# Checks CONTEXT.md and .claude/workflow/project.md. A path is any backtick span holding no
+# Checks the Entry point column of config.md's `## Surfaces` and the `## Git moves` table
+# whatever the mode, then, when the mode is on, CONTEXT.md and .claude/workflow/project.md. A path is any backtick span holding no
 # whitespace and at least one `/`; URLs and globs are skipped. Bare filenames are skipped,
 # because prose says `config.md` far more often than it cites a file.
 #
 # Ceilings default to 100 lines for CONTEXT.md and 120 for project.md; override with
 # CONTEXT_MAX and PROJECT_MAX.
 #
-# Exit 0: clean, or the mode is off and there is nothing to check. Exit 1: problems printed.
+# Exit 0: clean, or the mode is off and the config paths resolve. Exit 1: problems printed.
 # Exit 64: usage.
 
 set -uo pipefail
@@ -26,7 +27,7 @@ root=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --root) root="${2-}"; shift 2 ;;
-    -h|--help) sed -n '2,22p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,24p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "usage: knowledge-paths.sh [--root <dir>]" >&2; exit 64 ;;
   esac
 done
@@ -54,13 +55,38 @@ if [ -f "$config" ] \
   mode=on
 fi
 
-if [ "$mode" = off ]; then
-  echo "knowledge-paths: mode off, nothing to check"
-  exit 0
-fi
-
 rc=0
 checked=0
+
+# Surfaces and Git moves live in config.md, so they are checked whatever the mode: an entry
+# point that no longer resolves misleads a run whether or not the knowledge layer is on.
+# Only the second cell of each table row is read (Entry point, Command). A path is a
+# whitespace-separated word of a backtick span holding a `/`; URLs, globs and <placeholders>
+# are skipped.
+if [ -f "$config" ]; then
+  for section in Surfaces "Git moves"; do
+    sed -n "/^## $section/,/^## /p" "$config" | grep '^|' \
+      | awk -F'|' '{print $3}' | grep -oE '`[^`]+`' | tr -d '`' | tr -s '[:space:]' '\n' \
+      | sed 's/[,;]$//' | sort -u >"$tmp/cfgpaths" || true
+    while IFS= read -r p; do
+      case "$p" in
+        ''|*://*|*'*'*|*'?'*|*'<'*|*'>'*) continue ;;
+        */*) ;;
+        *) continue ;;
+      esac
+      checked=$((checked + 1))
+      if [ ! -e "$root/$p" ]; then
+        echo "knowledge-paths: config.md $section names $p -- no such file or directory"
+        rc=1
+      fi
+    done <"$tmp/cfgpaths"
+  done
+fi
+
+if [ "$mode" = off ]; then
+  if [ "$rc" -eq 0 ]; then echo "knowledge-paths: mode off, config paths resolve ($checked checked)"; fi
+  exit "$rc"
+fi
 
 for f in "$context" "$project"; do
   rel="${f#"$root"/}"

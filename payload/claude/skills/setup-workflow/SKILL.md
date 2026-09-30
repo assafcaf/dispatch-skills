@@ -178,6 +178,17 @@ Offer the sections in `.claude/workflow/claude-md-snippet.md` — how work flows
 writing rules — for the repo's `CLAUDE.md`. Show them, add only what the operator accepts, and
 keep each addition short: every line of `CLAUDE.md` loads into every session.
 
+## 7b. Surfaces
+
+The config's `## Surfaces` rows come from a scan, not from guesswork: the operator is asked only
+for what a scan cannot know. The scan's `SURFACES:` section gives one line
+`<surface> | <entry path> | <how invoked>` per candidate.
+
+Dispatch one `knowledge-scanner` agent over the repo root, put each entry path in the Entry
+point column, and ask the operator for the other columns. This runs even when knowledge mode is
+off: the rows belong to the config, not to the knowledge layer. Then run `knowledge-paths.sh`,
+which fails on an entry point that does not resolve.
+
 ## 8. Rehearsal
 
 The closing step: run it after every other step, once the config and the harness are final.
@@ -189,7 +200,7 @@ bash .claude/workflow/bin/rehearse.sh
 
 It runs the mechanical delivery path in throwaway worktrees — move onto the epic head, a
 trivial red, `verify-red`, a trivial green, `task-submit`, `merge-task` into a throwaway epic
-branch (pushed, then deleted from `origin`), a preview restart of the configured surface, and a
+branch (pushed, then deleted from `origin`), a preview restart of the configured preview, and a
 ledger write from a worktree to a temporary ticket — and prints `STEP <name> PASS|FAIL
 <detail>` for each. It removes every branch, worktree and ledger change it made, whether a step
 passed or not. The last line is `REHEARSAL OK` or `REHEARSAL FAILED <n>`.
