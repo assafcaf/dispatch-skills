@@ -44,7 +44,7 @@ def test_o37_setup_workflow_uses_the_knowledge_scanner_for_surfaces(payload_text
 
 def test_o37_setup_workflow_scans_surfaces_even_when_knowledge_mode_is_off(payload_text):
     text = payload_text(SETUP)
-    m = re.search(r"^#+ .*[Ss]urface.*$(.*?)(?=^#+ |\Z)", text, re.M | re.S)
+    m = re.search(r"^#+ [^\n]*[Ss]urface[^\n]*$(.*?)(?=^#+ |\Z)", text, re.M | re.S)
     assert m, "no surfaces step in setup-workflow"
     step = m.group(1)
     assert "knowledge-scanner" in step
