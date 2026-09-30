@@ -39,7 +39,8 @@ critical path, so add one only for a reason you can name.
 5. **Missing groundwork.** Anything every task needs that no task creates (a fixture, a config
    key, a module).
 6. **Tier.** Does each task's tier (`small` | `standard` | `complex`, per
-   `.claude/workflow/ticket-template.md`) fit what the code shows? Flag a `small` task
+   `.claude/workflow/ticket-template.md`) fit what the code shows? Each ticket's Tier line should name its signal (files touched,
+   interfaces changed, outcome count, standing overlap); check the signal against the code. Flag a `small` task
    that touches an interface others consume, or a `standard` one that is a one-line change.
 7. **Risk.** Which tasks are likely to be hard: unclear outcomes, code with no tests today,
    concurrency, anything touching a serial resource.
@@ -62,7 +63,7 @@ INTERFACES:
 CONTRADICTIONS:
 - <KEY> vs <KEY | existing test>: <what each asserts>
 TIERS:
-- <KEY>: <tier> → suggest <tier> — <why>
+- <KEY>: <tier> → suggest <tier> — <signal>: <why>
 GAPS:
 - <what no task creates, and which task should>
 RISKS:

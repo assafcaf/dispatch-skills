@@ -49,11 +49,25 @@ Nothing is published before the operator approves the plan.
   screen, function or record. Where they meet, one owns the behaviour and the other's outcome
   names it.
 - **Tag resources.** Mark outcomes that need a serial resource from the config, by its tag.
-- **Assign a tier.** Every task gets `small`, `standard` or `complex`, with one line saying
-  why (`ticket-template.md`, "Tiers"). The tier decides how many agents run the task and on
-  which model, so be honest in both directions. A one-field change marked `standard` pays
-  for two agents and a hand-off it didn't need. A cross-module change marked `small` loses
-  the independent test author.
+- **Assign a tier.** Every task gets `small`, `standard` or `complex`, judged from observable
+  signal, not feel: files touched, interfaces changed, outcome count, and standing overlap
+  with other tasks (`ticket-template.md`, "Tiers"). Write the Tier section as one line,
+  `<tier> — <signal>: <why>`, for example `small — 2 files touched, no interfaces changed: extends an existing rule`.
+  The tier decides how many agents run the task and on which model, so be honest in both
+  directions. A one-field change marked `standard` pays for two agents and a hand-off it
+  didn't need. A cross-module change marked `small` loses the independent test author.
+
+  Work that has no red test is not a task. A docs-only change, or one with nothing a test
+  could assert, goes to the epic's finish step instead of a task: it is not a task of its own.
+
+  A device-only check (something only a real device or session can show) is not a task
+  either. Attach it to the feature task it verifies as a resource probe, tagged with the
+  serial resource, so the operator runs it with that feature.
+
+  A tiny task may fold into a sibling, and only when both touch the same files and neither
+  would block the other. Folding tasks that touch different files, or where one blocks the
+  other, only hides the edge.
+
 - **Size to one session:** as a rule of thumb, at most 3 outcomes and about 5 files.
 
 ## 2. Compute waves and show the plan
