@@ -5,6 +5,11 @@
 #   verify-red.sh [--setup '<cmd>'] [--expect 1[,<code>...]] <commit> -- <test command...>
 #   verify-red.sh --setup 'uv sync -q' abc1234 -- uv run pytest -q tests/test_x.py::test_y
 #
+# --deps <dir> --lockfile <file> [--base <sha>]: when <file> is the same blob at <commit> and at
+# <base> (default: merge-base of <commit> and the invoking HEAD), <dir> from the invoking
+# checkout is linked into the worktree (junction on Windows, symlink elsewhere) and --setup is
+# skipped. A changed lockfile runs --setup as usual.
+#
 # Exit 0: red as expected. Exit 1: not red (passed, or failed the wrong way). Exit 64: usage.
 # The last 40 lines of the test output are printed either way, so the caller can quote them.
 
@@ -12,10 +17,16 @@ set -uo pipefail
 
 setup=""
 expect="1"
+deps=""
+lockfile=""
+base=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --setup) setup="$2"; shift 2 ;;
     --expect) expect="$2"; shift 2 ;;
+    --deps) deps="$2"; shift 2 ;;
+    --lockfile) lockfile="$2"; shift 2 ;;
+    --base) base="$2"; shift 2 ;;
     --) shift; break ;;
     -*) echo "verify-red: unknown option $1" >&2; exit 64 ;;
     *) commit="$1"; shift ;;
@@ -31,14 +42,43 @@ sha="$(git rev-parse --verify --quiet "${commit}^{commit}")" || {
   exit 64
 }
 
+if [ -n "$deps" ] && [ -z "$lockfile" ]; then
+  echo "verify-red: --deps needs --lockfile" >&2
+  exit 64
+fi
+
+link=""
+unlink_deps() {
+  [ -n "$link" ] || return 0
+  if [ -L "$link" ]; then rm -f "$link"; else cmd //c rmdir "$(cygpath -w "$link")" >/dev/null 2>&1 || true; fi
+  link=""
+}
+
 dir="$(mktemp -d)/red-${sha:0:8}"
-cleanup() { git worktree remove --force "$dir" >/dev/null 2>&1 || true; }
+cleanup() { unlink_deps; git worktree remove --force "$dir" >/dev/null 2>&1 || true; }
 trap cleanup EXIT
 
 git worktree add --detach --quiet "$dir" "$sha" || {
   echo "verify-red: could not create a worktree at $sha" >&2
   exit 64
 }
+
+if [ -n "$deps" ]; then
+  d="${deps%/}"
+  src="$(pwd)/$d"
+  [ -n "$base" ] || base="$(git merge-base "$sha" HEAD 2>/dev/null)"
+  new="$(git rev-parse --quiet --verify "$sha:$lockfile" 2>/dev/null)"
+  old="$(git rev-parse --quiet --verify "$base:$lockfile" 2>/dev/null)"
+  if [ -d "$src" ] && [ -n "$new" ] && [ "$new" = "$old" ]; then
+    mkdir -p "$(dirname "$dir/$d")"
+    if command -v cygpath >/dev/null 2>&1; then
+      cmd //c mklink //J "$(cygpath -w "$dir/$d")" "$(cygpath -w "$src")" >/dev/null 2>&1 && link="$dir/$d"
+    else
+      ln -s "$src" "$dir/$d" && link="$dir/$d"
+    fi
+    [ -n "$link" ] && setup=""
+  fi
+fi
 
 out="$dir/.verify-red.log"
 (

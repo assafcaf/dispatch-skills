@@ -109,7 +109,10 @@ detects the real runner and fills this table in.
 | Setup in a fresh worktree | `pip install -e .` |
 | Run named tests | `python -m pytest -q {tests}` (`{tests}` = space-separated node ids) |
 | Full suite | `python -m pytest -q` |
+| Typecheck | `true` (none configured) |
 | Lint | `true` (none configured) |
+| Dependency directory | none (e.g. `node_modules`; `verify-red.sh --deps` links it instead of running setup) |
+| Lockfile | none (e.g. `package-lock.json`; setup runs again only when it changes from the base) |
 | Red means | exit code `1`: tests collected, ran, and failed. Collection errors (exit `2`) do not count |
 | Test paths | `tests/` |
 | Weakened tests | `bash .claude/workflow/bin/weakened-tests.sh <base> <head>` (pytest patterns by default; set `WEAK_ADDED` and `TEST_DEF` for another stack — see the script's header) |

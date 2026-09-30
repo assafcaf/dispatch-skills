@@ -27,9 +27,9 @@ one.
 | `standard` | Those, plus the modules they call and are called by | Only duplication you added |
 | `complex` | As widely as the change needs: callers, data flow, the invariants | As the procedure says |
 
-In every tier, iterate on the **named tests only**. Run the full suite and lint once, when
-the named tests pass, and again only if you changed code after a failure. Each full run costs
-the whole suite's time.
+In every tier, iterate on the **named tests only**. Run the typecheck and lint once, when
+the named tests pass, and the full suite too in a `complex` task; run again only if you
+changed code after a failure. Each full run costs the whole suite's time.
 
 ## Brevity
 
@@ -72,7 +72,8 @@ disputed test doesn't touch.
    report `BLOCKED` with the conflicting paths.
 3. **Implement the least code that makes them pass.** Keep the stubs' signatures. Follow the
    patterns of the code around you, and respect the ticket's "Out of scope".
-4. **Run the named tests, then the full suite, then lint.** All must be green.
+4. **Run the named tests, then the typecheck, then lint.** All must be green. In a `complex`
+   task, also run the full suite once before you submit; in other tiers the merge gate runs it.
 5. **Refactor** only while everything stays green, and only as far as your tier allows (see
    "Effort by tier"): remove duplication, fix names. No new behavior.
 6. **Commit** your work (one or more commits, the cherry-picked red commits stay first):

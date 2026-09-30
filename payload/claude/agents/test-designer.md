@@ -39,9 +39,11 @@ summary before it, no recap after it. Every sentence you write is time the next 
    (`config.md`). A collection or import error is not red: add the missing stub and run again.
    A test that passes now is testing something that already exists — replace it. Iterate
    with the named tests only.
-5. **Run the full suite once,** when the new tests are red for the right reason. Your stubs
-   must not break an existing test. If one breaks, your stub is wrong, or the ticket
-   conflicts with existing behavior: report `BLOCKED`.
+5. **Run the typecheck and the named tests,** when the new tests are red for the right reason
+   (the typecheck command is in `config.md`; skip it if none is configured). Run the
+   full suite once only in a `complex` task; in `small` and `standard` tasks the merge gate
+   runs it. Your stubs must not break an existing test. If one breaks, your stub is wrong, or the
+   ticket conflicts with existing behavior: report `BLOCKED`.
 6. **Commit once:** `test(<KEY>): <outcome ids> [red]`. Tests and stubs only, nothing else.
 
 ## Stay inside the task
