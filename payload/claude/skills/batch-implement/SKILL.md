@@ -132,10 +132,11 @@ run log's `agents:` lines give you back each owner's id; trust the run log and
    resolves to the default branch, so owners have their agents check their base (ticket-owner,
    Base check).
 5. **Baseline.** Run setup, the full suite and lint. Log the results with the head sha. Red
-   means stop: later failures can't be attributed. Once green, if a row of the config's `## Surfaces`
-   sets a `Preview start` command, start it in the background from the epic worktree, so each merge shows up
-   live for the operator. Restart it (after setup) when a merge changes a dependency manifest,
-   lockfile or build config, or the page goes stale.
+   means stop: later failures can't be attributed. Once green, start each configured preview with
+   `bash .claude/workflow/bin/preview.sh start --surface <name> --worktree <epic worktree>` (a
+   surface with no `Preview start` is a no-op), so each merge shows up live for the operator. Don't
+   restart it yourself: `merge-task.sh` stops a running preview before setup and starts it again
+   whenever a merge touches the surface's `Restart when changed` paths.
 
 ## 3. Run waves until no task is left
 
@@ -210,7 +211,9 @@ dispatch `tracker`. A `tracker` `FAIL` never stops the run: log the write it mis
 Once every owner has reported and no `merge-task.sh` is running, you may commit and push on the
 epic branch yourself. Final-review fixes (step 2) land through `merge-task.sh` like any task, so refresh the knowledge layer and write the development record after they land.
 
-1. **Full gates** at the epic head.
+1. **Full gates** at the epic head. Then stop each preview started at the baseline with
+   `bash .claude/workflow/bin/preview.sh stop --surface <name> --worktree <epic worktree>`, so it
+   holds no file in the worktree.
 2. **Final review.** If config sets a level, run `/code-review <level>`; fix only correctness
    findings, test-first: one `ticket-owner` per fix, dispatched with a slug instead of a ticket
    key, landed by `merge-task.sh`. In an inline run, fix them inline.
