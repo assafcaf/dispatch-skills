@@ -33,15 +33,15 @@ interface correction from an earlier task. You never message the `epic-merger`: 
 orchestrator relays your `READY` to it, and its reply comes to you. A merger resumed by an
 agent in an isolated worktree inherits that isolation and can't run git in the epic worktree.
 A dispatch with no ticket key (a fix from the epic's final review) names a slug to use as
-`<KEY>`; skip every `tracker` step for it.
+`<KEY>`; it has no ledger comment.
 
 ## Tiers
 
-| Tier | Tests | Code | Tracker comments |
+| Tier | Tests | Code | Ledger comment (yours to report) |
 |---|---|---|---|
-| `small` | none: the code-writer writes them in solo mode | one `code-writer` with `MODE: solo` | doing, done |
-| `standard` | `test-designer` | `code-writer`, started with the test-designer | doing, red proven, done |
-| `complex` | `test-designer` on the complex model | `code-writer` on the complex model, started with the test-designer | doing, red proven, done |
+| `small` | none: the code-writer writes them in solo mode | one `code-writer` with `MODE: solo` | done |
+| `standard` | `test-designer` | `code-writer`, started with the test-designer | done |
+| `complex` | `test-designer` on the complex model | `code-writer` on the complex model, started with the test-designer | done |
 
 In the small tier the solo code-writer's report carries both `RED_COMMIT` and `HEAD`. You still
 prove red at its `RED_COMMIT` (step 3) before handing over, and the merger still checks that
@@ -49,17 +49,15 @@ nothing after it changed a test.
 
 ## Names and addresses
 
-Give every agent you dispatch a description of `<KEY>-<role>`: `<KEY>-tests`, `<KEY>-code`,
-`<KEY>-tracker`. That is the name a person reads in the logs. Messages are routed by the agent
+Give every agent you dispatch a description of `<KEY>-<role>`: `<KEY>-tests`, `<KEY>-code`. That is the name a person reads in the logs. Messages are routed by the agent
 id the dispatch returns, not by the name. Keep each id you get, and reply to a message at its
 `from` address.
 
 ## Procedure
 
-**Tracker calls don't block.** Dispatch each `tracker` call and go straight on to the next
-step; its result arrives as a notification. Before your final report, every tracker call you
-made must have answered. A `FAIL` doesn't stop the task: list each write it didn't make in
-`TRACKER_PENDING`, and the orchestrator applies them.
+**You make no tracker calls.** You never dispatch a `tracker` agent and never touch the ledger.
+The orchestrator is the only ledger writer: it records `doing`, `done`, `failed` and `blocked`
+from your report. What it needs for the comment goes in the report's `LEDGER_COMMENT` line.
 
 **Base check.** When the orchestrator doesn't sit in the epic worktree, `worktree.baseRef: head`
 resolves to the default branch, so a new agent worktree can start from the wrong commit. Tell
@@ -73,8 +71,7 @@ that asserts the new truth, so `weakened-tests.sh` passes as it is. Don't ask fo
 none is granted, and a run that argues past a test-safety gate gets its later steps denied as
 a CI bypass. Never edit your own permission settings to get past a denial.
 
-1. **Start.** Dispatch `tracker`: move the task to `doing`, with a comment naming the run id,
-   the epic branch and the tier. In the same message, dispatch step 2's agents.
+1. **Start.** Dispatch step 2's agents.
 2. **Tests, and an early code-writer.** `small`: skip to step 4. Otherwise dispatch, in one
    message, both on the tier's model:
    - `test-designer` as `<KEY>-tests`, with only: the ticket file's path, the key, the tier,
@@ -93,11 +90,9 @@ a CI bypass. Never edit your own permission settings to get past a denial.
    `bash .claude/workflow/bin/verify-red.sh --setup '<setup>' <RED_COMMIT> -- <named tests>`
    must print `RED OK`. Pass only host-level outcome tests: a serial-resource outcome is proven
    green on its resource after the merge. A task whose outcomes are all resource-tagged has
-   nothing to prove red — note that and go on. In `standard` and `complex`, dispatch `tracker`
-   to comment `red proven at <sha7>: <n> tests in <test files>`, and in the same message
+   nothing to prove red — note that and go on. In `standard` and `complex`,
    `SendMessage` the early code-writer `RED <RED_COMMIT>` with the designer's `STUBS` and
-   `NOTES`. Its `OUTCOMES` are in the red commit; don't copy them over. In `small`, the red
-   sha goes in the done comment instead.
+   `NOTES`. Its `OUTCOMES` are in the red commit; don't copy them over. The red sha goes in the `LEDGER_COMMENT`.
 4. **Code.** `standard` and `complex`: the code-writer is already running (step 2). `small`:
    dispatch `code-writer` on the tier's model as `<KEY>-code` with `MODE: solo`, the ticket
    file's path, the key, the tier and the commands. It writes the red commit and the green
@@ -125,11 +120,10 @@ a CI bypass. Never edit your own permission settings to get past a denial.
 8. **Finish.** Write the evidence once, in full, to `.work/runs/<run id>/<KEY>.md` with
    `Write` (`.claude/workflow/writing-files.md`): the merge and red shas, the outcome →
    tests mapping, the red and green commands with one-line results, any resource output
-   tail, files touched outside the ticket's list, and your rulings. Then dispatch `tracker`:
-   move the task to `done`, with a comment of at most five lines — merge and red shas, one
-   line each for red and green (command, result), files outside the list if any. Paste
-   nothing else from `<KEY>.md`: the tracker is where people look, the run log is where the
-   detail lives. Then add your outcome line to the shared
+   tail, files touched outside the ticket's list, and your rulings. Then put the
+   ledger comment in the report's `LEDGER_COMMENT` line: one line with the merge and red shas
+   and the red and green results. Nothing else from `<KEY>.md`: the tracker is where people
+   look, the run log is where the detail lives. Then add your outcome line to the shared
    `.work/runs/<run id>/progress.md` — `<KEY>: done (red <sha7>, merge <sha7>)` — with a single
    `printf '%s\n' '<line>' >> <path>`. Other owners write that file at the same moment, so
    append, never `Write`: a rewrite drops their lines, and the status line counts them. Remove
@@ -175,11 +169,10 @@ from the epic head: a `test-designer`, then a fresh code-writer, both on the ret
 is the cost of a tier guessed too low, and it is paid once.
 
 Dispatch a fresh code-writer as `<KEY>-code-retry`, then check and hand over again. Anything that
-would need a second retry makes the task `failed`: dispatch `tracker` to comment what failed and
-what is needed, leaving the status at `doing`; append `<KEY>: failed (<reason>)` to
+would need a second retry makes the task `failed`: put what failed and
+what is needed in `LEDGER_COMMENT`; append `<KEY>: failed (<reason>)` to
 `progress.md` the same way as step 8; write your `<KEY>.md`; and report. A task you can't go on
-with for a reason no retry fixes is `blocked`, the same way. A `tracker` `FAIL` is not one of
-those: it goes in `TRACKER_PENDING`.
+with for a reason no retry fixes is `blocked`, the same way.
 
 ## Memory
 
@@ -202,7 +195,7 @@ INTERFACES: <the code-writer's INTERFACES line>
 FILES_OUTSIDE: <paths outside the ticket's list, or none>
 RULINGS: <your Ruling: lines, or none>
 RESOURCE_PROBES: <probe name and command per resource outcome, or none>
-TRACKER_PENDING: <each tracker write that failed, as its OP block, or none>
+LEDGER_COMMENT: <one line>
 NOTE: <one line: what failed and what is needed, or the question for a ruling>
 ```
 

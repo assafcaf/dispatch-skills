@@ -16,7 +16,7 @@ Tools by adapter:
 ```markdown
 ---
 name: tracker
-description: Performs every read and write against the project's issue tracker (the ledger) for /tickets, /batch-implement and its ticket owners. Owns the tracker's tools and metadata so no other agent needs them.
+description: Performs every read and write against the project's issue tracker (the ledger) for /tickets and /batch-implement. Owns the tracker's tools and metadata so no other agent needs them.
 tools: <per the table above>
 model: haiku
 memory: project

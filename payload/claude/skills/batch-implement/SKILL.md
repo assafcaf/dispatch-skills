@@ -19,7 +19,7 @@ You orchestrate and never write product code yourself. You run three layers of a
 | `ticket-owner` | One task from `doing` to `done`: its tests, its code, its gates, its ticket and run-log entry | You, one per task |
 | `test-designer` | The task's failing tests + stubs, committed red | Its ticket owner |
 | `code-writer` | Makes those tests pass, suite and lint green | Its ticket owner |
-| `tracker` | Every tracker read and write | Anyone who needs one. You make no tracker calls directly |
+| `tracker` | Every tracker read and write | You only: the ledger's one writer. Owners never dispatch it. Local ledger updates go through `ledger.sh` |
 | `memory-curator` | Keeps the agents' persistent memory clean: keeps, tightens, merges or deletes lessons, never adds them | You, once, at the end of the epic |
 
 You pick the waves, answer what the owners can't settle, run the serial resources, and finish
@@ -31,8 +31,7 @@ task's forty small steps cost far less in an owner's short context than in yours
 code review: a task is done when the definition of done holds.
 
 **Names and addresses.** Give every dispatch a description that names what it works on:
-`<epic key>-merger`, `<task key>-owner`. Owners name theirs `<task key>-tests`, `-code` and
-`-tracker`. The name is for people reading logs; messages are routed by the agent id each
+`<epic key>-merger`, `<task key>-owner`. Owners name theirs `<task key>-tests` and `-code`. The name is for people reading logs; messages are routed by the agent id each
 dispatch returns, so keep the merger's id and every owner's id, and reply to a message at its
 `from` address.
 
@@ -89,7 +88,7 @@ with a `done`, `failed` or `blocked` line keeps it. A task in the doing status w
 those starts over — remove any worktree and branch from its earlier attempt
 (`git worktree list`) — and that doesn't use up its retry. A task whose `Merge <KEY>` commit is
 on the epic branch but has no `done` line isn't restarted: gate the epic head, push, and have
-`tracker` move it to done. Start a new merger (2.6).
+record it done (3f). Start a new merger (2.6).
 
 **After compaction in the same session,** the agents are still running: restart nothing. The
 run log's `agents:` lines give you back the merger's id and each owner's; trust the run log and
@@ -107,7 +106,9 @@ run log's `agents:` lines give you back the merger's id and each owner's; trust 
    and update the tracker as tasks land. Wait for yes.
 3. **Enter the epic worktree.** Create it if missing (`git fetch origin`, then
    `git worktree add .claude/worktrees/<KEY> -b <epic branch> origin/HEAD`), then
-   `EnterWorktree` into it.
+   Never call `EnterWorktree`: it
+   moves your session and strands the agents you resume. Reach the epic worktree with
+   `git -C .claude/worktrees/<KEY> <command>`, and pass that path to every agent.
 4. **Check the base setting:** `.claude/settings.json` must set `worktree.baseRef` to `head`,
    or agents branch from the default branch and miss earlier tasks. Stop if it's missing. Even
    when set, `head` is the orchestrator's head: if you don't sit in the epic worktree it
@@ -143,7 +144,7 @@ owner's `INTERFACES`. Never the merger's id: only you message the merger. An age
 isolated worktree that resumes it leaves it isolated there, unable to run git in the epic
 worktree.
 
-From here each owner moves its ticket, proves red, gates its branch and hands it to you for
+From here each owner proves red, gates its branch and hands it to you for
 the merger; the merger merges one task at a time and gates the epic head after each merge. You
 don't repeat their checks.
 
@@ -154,7 +155,7 @@ don't repeat their checks.
 | Owner `SUBMITTED` | Check the `READY` block's shas (above). Relay it to the merger unchanged, with one line added: `OWNER: <the owner's id>`. A bad sha goes back to the owner instead |
 | Owner `NEEDS_RULING` | Decide it, log `Ruling: <decision> — <why> — <cost if wrong>`, and `SendMessage` the answer to the owner. If it needs the operator, it's one of the stop-and-ask cases above |
 | Owner `MERGED_PENDING_RESOURCE` | Run its `RESOURCE_PROBES`, one at a time across the whole run, with the configured runner, at the merge sha — from a throwaway `git worktree add --detach`, because the merger keeps merging in the epic worktree meanwhile. Keep the output in the run log. Pass: message the owner `RESOURCE PASSED` with the output tail. Fail: message the merger `REVERT <key> <merge sha>`, wait for its `REVERTED` line, then message the owner `RESOURCE FAILED` with the output |
-| Owner `DONE`, `FAILED`, `BLOCKED` | Record it, then fill the free slot (a). A failed or blocked task's dependents wait; everything else continues. Dispatch `tracker` with any `TRACKER_PENDING` writes; if they fail again, that is a stop-and-ask case |
+| Owner `DONE`, `FAILED`, `BLOCKED` | Record it (3f) from the owner's report, then fill the free slot (a). A failed or blocked task's dependents wait; everything else continues |
 | Merger `REVERTED <KEY>` whose failing tests are all in files the task didn't touch and doesn't import | Rerun the full suite at the merge sha from a throwaway `git worktree add --detach`. Green means a false positive: message the merger `REMERGE <KEY> <revert sha>` with `OWNER: <id>`. The re-merge doesn't use the task's retry |
 | Merger `FAIL: …; holding …` | Stop and ask. Once the operator has fixed it, message the merger `CONTINUE`; the held owners are still waiting and need nothing from you |
 
@@ -180,6 +181,14 @@ tracker.
    the status line prints `epic` and `doing` verbatim, so use the tracker's own keys. A
    snapshot older than six hours is shown as stale, so never carry an old `updated` forward.
    Nothing else reads this file — if the write fails, note it and carry on.
+
+**f. Write the ledger.** You are the only ledger writer; owners report and never dispatch
+`tracker`. At dispatch (b), record `doing` with a comment naming the run id, the epic branch
+and the tier. On an owner's report, record from its `LEDGER_COMMENT` line: `DONE` moves the
+task to `done`; `FAILED` and `BLOCKED` comment it and leave the status at `doing`. With the
+`local` adapter run `bash .claude/workflow/bin/ledger.sh <KEY> status <doing|done> "<comment>"`
+(or `ledger.sh <KEY> comment "<text>"`) from the epic worktree; with any other adapter,
+dispatch `tracker`. A `tracker` `FAIL` is a stop-and-ask case.
 
 ## 4. Finish the epic
 
