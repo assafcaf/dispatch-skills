@@ -6,6 +6,12 @@ installer wrote this from your answers; `/setup-workflow` fills in what it can d
 (statuses, transition ids, the commands that actually run here) and checks the rest. After
 that it is yours: edit it when the project changes.
 
+PAD version: <PAD_VERSION>
+
+<!-- Section manifest: the `## ` headings below are the sections a config of this PAD version
+has. `bin/preflight.sh` fails when config.md lacks one, or records an older PAD version, and
+names `/setup-workflow upgrade`. -->
+
 ## Tracker
 
 - **Adapter:** `<TRACKER>`. Operations are in `.claude/workflow/trackers/<TRACKER>.md`; the
