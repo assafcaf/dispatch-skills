@@ -184,6 +184,8 @@ The places where the product is seen or used. Optional; none are configured.
   `.claude/settings.json` must set `worktree.baseRef: head`, so implementer worktrees branch
   from the epic branch.
 - **Parallelism:** at most `3` tasks (ticket owners) at once.
+- **Suite slots:** `2` — at most this many full-suite runs at once, through `bin/suite-slot.sh`;
+  a waiting merge gate goes first. `PAD_SUITE_SLOTS` overrides it.
 - **Final review:** `off`. Set to a `/code-review` level (`low`, `medium`, …) to run one
   review over the finished epic branch before the PR.
 - **Publishing:** the merger pushes the epic branch to `origin` after each merge, so tracker comments cite

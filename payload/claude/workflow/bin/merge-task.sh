@@ -5,10 +5,17 @@
 #                 --gate "<cmd>" --lint "<cmd>" [--test-paths "<pathspecs>"]
 #                 <KEY> <RED> <TASK_HEAD> "<GOAL>"
 #
-# Order: task-submit.sh -> git merge --no-ff --no-commit -> setup (only when a dependency manifest
-# or lockfile changed) -> gate -> lint -> commit "Merge <KEY>: <GOAL>" -> push -u origin <branch>.
-# Setup, gate and lint run with the epic worktree as their working directory. A failure before
-# the commit aborts the merge, so the epic head and tree are exactly as they were.
+# Order: merge lock -> task-submit.sh -> git merge --no-ff --no-commit -> setup (only when a
+# dependency manifest or lockfile changed) -> gate -> lint -> commit "Merge <KEY>: <GOAL>" -> push
+# -u origin <branch>. Setup, gate and lint run with the epic worktree as their working directory.
+# A failure before the commit aborts the merge, so the epic head and tree are exactly as they were.
+#
+# The merge lock `<git common dir>/pad-locks/merge` (a mkdir lock holding the owner's pid) is held
+# from before the submission checks until exit, so concurrent merges on one repo run one after the
+# other, each on the head the previous one produced. The gate runs through
+# `suite-slot.sh --priority merge`. A gate whose failures (pytest-style `FAILED <file>::<test>`
+# lines) all sit in test files the task neither changed nor imports is rerun once; a green rerun
+# counts. A failure naming no test file is not rerun.
 #
 # Last line: MERGED <sha> | REJECTED <KEY>: <reason> | CONFLICT <KEY>: <paths> | ERROR <KEY>: ...
 # Exit 0 MERGED, 1 REJECTED or CONFLICT, 2 infrastructure failure (push, dirty tree), 64 usage.
@@ -42,7 +49,26 @@ bin="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 g() { git -C "$wt" "$@"; }
 infra() { echo "ERROR $key: $1"; exit 2; }
 log="$(mktemp)"
-trap 'rm -f "$log"' EXIT
+lock=""
+trap 'rm -f "$log"; [ -z "$lock" ] || rm -rf "$lock"' EXIT
+trap 'exit 130' INT
+trap 'exit 143' TERM
+
+# The merge lock, taken before anything reads the epic worktree. A lock whose owner is gone is
+# reclaimed; one with no pid yet is being taken.
+common="$(g rev-parse --git-common-dir 2>/dev/null)" &&
+  common="$(cd "$wt" && cd "$common" && pwd)" || infra "$wt is not a git worktree"
+mkdir -p "$common/pad-locks" || infra "cannot create $common/pad-locks"
+until mkdir "$common/pad-locks/merge" 2>/dev/null; do
+  owner="$(cat "$common/pad-locks/merge/pid" 2>/dev/null)"
+  if [ -n "$owner" ] && ! kill -0 "$owner" 2>/dev/null; then
+    rm -rf "$common/pad-locks/merge"
+    continue
+  fi
+  sleep 0.1
+done
+lock="$common/pad-locks/merge"
+echo $$ > "$lock/pid"
 
 # Infrastructure: the epic worktree must be on its branch with no uncommitted tracked change.
 [ "$(g symbolic-ref -q --short HEAD 2>/dev/null)" = "$branch" ] ||
@@ -74,15 +100,44 @@ if ! g merge --no-ff --no-commit "$head" >"$log" 2>&1; then
   infra "git merge failed without a conflict"
 fi
 
-# Run one step in the epic worktree; on failure print its tail, abort the merge and reject.
-step() {
-  local name="$1" cmd="$2"
-  (cd "$wt" && bash -c "$cmd") >"$log" 2>&1 && return 0
-  local code=$?
+# Print the failed step's tail, abort the merge and reject.
+reject_step() {
   tail -n 40 "$log"
   abort
-  echo "REJECTED $key: $name failed (exit $code)"
+  echo "REJECTED $key: $1 failed (exit $2)"
   exit 1
+}
+
+# Run one step in the epic worktree; reject on failure.
+step() {
+  (cd "$wt" && bash -c "$2") >"$log" 2>&1 && return 0
+  reject_step "$1" "$?"
+}
+
+# The gate, holding a suite slot ahead of task-side runs.
+run_gate() {
+  (cd "$wt" && bash "$bin/suite-slot.sh" --priority merge -- bash -c "$gate") >"$log" 2>&1
+}
+
+# True when the gate output names failing test files and every one is outside the task: not
+# changed between <base> and the task head, and importing none of the changed files.
+outside_only() {
+  local files changed f c stem
+  files="$(sed -n 's/^FAILED \([^ :]*\)::.*/\1/p' "$log" | sort -u)"
+  [ -n "$files" ] || return 1
+  changed="$(g diff --name-only "$base" "$head")"
+  for f in $files; do
+    printf '%s\n' "$changed" | grep -qxF "$f" && return 1
+    [ -f "$wt/$f" ] || return 1
+    for c in $changed; do
+      stem="$(basename "$c")"
+      [ -n "${stem%.*}" ] || continue
+      stem="$(printf '%s' "${stem%.*}" | sed 's/[][\.*^$+?(){}|/]/\\&/g')"
+      grep -E '(^|[^[:alnum:]_])(import|from|require|include|use)([^[:alnum:]_]|$)' "$wt/$f" |
+        grep -qE "(^|[^[:alnum:]_])${stem}([^[:alnum:]_]|$)" && return 1
+    done
+  done
+  return 0
 }
 
 if [ -n "$setup" ]; then
@@ -91,7 +146,12 @@ if [ -n "$setup" ]; then
     step setup "$setup"
   fi
 fi
-step gate "$gate"
+run_gate; code=$?
+if [ "$code" -ne 0 ] && outside_only; then
+  echo "gate failed only in test files outside $key; rerunning it once"
+  run_gate; code=$?
+fi
+[ "$code" -eq 0 ] || reject_step gate "$code"
 step lint "$lint"
 
 g commit -q --no-edit -m "Merge $key: $goal" >"$log" 2>&1 || {
