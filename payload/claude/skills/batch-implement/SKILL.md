@@ -85,10 +85,6 @@ override reads as a CI bypass to a permission classifier, which then denies ever
 toward that merge. Never edit your own permission settings to get past a denial either: give
 the operator the rule to add.
 
-**Check every sha before acting on it.** `git cat-file -t <sha>` must print `commit` for each
-`RED` and `TASK_HEAD` an agent reports. Agents have reported full shas with the right prefix
-and a wrong tail.
-
 ## 1. Load the work
 
 | Input | Tasks |
