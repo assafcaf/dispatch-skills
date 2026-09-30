@@ -40,8 +40,8 @@ A dispatch with no ticket key (a fix from the epic's final review) names a slug 
 | Tier | Tests | Code | Ledger comment (yours to report) |
 |---|---|---|---|
 | `small` | none: the code-writer writes them in solo mode | one `code-writer` with `MODE: solo` | done |
-| `standard` | `test-designer` | `code-writer`, started with the test-designer | done |
-| `complex` | `test-designer` on the complex model | `code-writer` on the complex model, started with the test-designer | done |
+| `standard` | `test-designer` | `code-writer`, after red is proven | done |
+| `complex` | `test-designer` on the complex model | `code-writer` on the complex model, after red is proven | done |
 
 In the small tier the solo code-writer's report carries both `RED_COMMIT` and `HEAD`. You still
 prove red at its `RED_COMMIT` (step 3) before handing over, and the merger still checks that
@@ -72,31 +72,29 @@ none is granted, and a run that argues past a test-safety gate gets its later st
 a CI bypass. Never edit your own permission settings to get past a denial.
 
 1. **Start.** Dispatch step 2's agents.
-2. **Tests, and an early code-writer.** `small`: skip to step 4. Otherwise dispatch, in one
-   message, both on the tier's model:
-   - `test-designer` as `<KEY>-tests`, with only: the ticket file's path, the key, the tier,
-     the setup, named-tests and full-suite commands, and the interface correction if there
-     is one;
-   - `code-writer` as `<KEY>-code`, for its early start: the ticket file's path, the key, the
-     tier and the commands, and no `RED_COMMIT`. It sets up and reads while the tests are
-     written, then stops with `PREPARED <KEY>`. That notification needs nothing from you:
-     end your turn.
-
-   Then `SendMessage` each one the other's id (`PEER <id>`), so they can use their direct
-   channel: questions about a test's meaning, and objections that a test contradicts the
-   ticket. The rules are in their agent files. You aren't copied, and each reports a `PEER`
-   line.
+2. **Tests.** `small`: skip to step 4. Otherwise dispatch the `test-designer` as `<KEY>-tests`
+   on the tier's model, with only: the ticket file's path, the key, the tier, the setup,
+   named-tests and full-suite commands, and the interface correction if there is one. It proves
+   its own red before it reports (its last step); end your turn and wait for its report.
 3. **Prove red.**
    `bash .claude/workflow/bin/verify-red.sh --setup '<setup>' <RED_COMMIT> -- <named tests>`
    must print `RED OK`. Pass only host-level outcome tests: a serial-resource outcome is proven
    green on its resource after the merge. A task whose outcomes are all resource-tagged has
-   nothing to prove red — note that and go on. In `standard` and `complex`,
-   `SendMessage` the early code-writer `RED <RED_COMMIT>` with the designer's `STUBS` and
-   `NOTES`. Its `OUTCOMES` are in the red commit; don't copy them over. The red sha goes in the `LEDGER_COMMENT`.
-4. **Code.** `standard` and `complex`: the code-writer is already running (step 2). `small`:
-   dispatch `code-writer` on the tier's model as `<KEY>-code` with `MODE: solo`, the ticket
-   file's path, the key, the tier and the commands. It writes the red commit and the green
-   one. Then prove red (step 3) at its `RED_COMMIT`.
+   nothing to prove red — note that and go on. The red sha goes in the `LEDGER_COMMENT`.
+4. **Code.** `standard` and `complex`: dispatch the `code-writer` as `<KEY>-code` on the tier's
+   model only after red is proven, with the ticket file's path, the key, the tier, the
+   commands, `RED: <RED_COMMIT>`, and the designer's `STUBS` and `NOTES`. Its `OUTCOMES` are in
+   the red commit; don't copy them over. `small`: dispatch `code-writer` on the tier's model
+   as `<KEY>-code` with `MODE: solo`, the ticket file's path, the key, the tier and the
+   commands. It writes the red commit and the green one. Then prove red (step 3) at its
+   `RED_COMMIT`.
+
+   A code-writer objection to a test arrives as
+   `BLOCKED: test <id> contradicts ticket line "<quote>"`. You route it, never the agents to
+   each other: decide from the ticket. If the test is wrong, message the test-designer
+   (`<KEY>-tests`) with the test and the ticket line; it commits a fix on top, you prove red
+   at it (step 3), then message the code-writer `RED <sha>`. If the test stands, tell the
+   code-writer the ticket line that makes it right.
 5. **Check the report.** The code-writer's `GREEN` line must show named tests, full suite and
    lint all green. Don't run the suite or lint again yourself: the merger gates the merged
    head. Then, before you submit, run
@@ -144,9 +142,9 @@ leaves open and it stays inside this task, make it and log
 interface or anything outside the epic branch, stop with `NEEDS_RULING`; the orchestrator
 answers by message and you carry on. Answering a question is free: it is not the retry.
 
-**A test fixed over the peer channel** comes to you as a new test-designer report with a new
+**A test fixed after an objection** comes to you as a new test-designer report with a new
 `RED_COMMIT` (a fix commit on top of the first one). Prove red at it (step 3), then message
-the code-writer `RED <sha>`. That is the channel working, not the retry. Pass the last red
+the code-writer `RED <sha>`. That is a ruling, not the retry. Pass the last red
 commit on the code-writer's branch to the merger as `RED`.
 
 ## One retry
@@ -156,7 +154,7 @@ A task gets one retry in total. Any of these uses it:
 | Trigger | The retry |
 |---|---|
 | Red not proven | The output to `<KEY>-tests` by message; prove red again |
-| Code-writer `BLOCKED` on a wrong test (the peer exchange didn't settle it) | Decide from the ticket. If the test is wrong: the ruling to `<KEY>-tests`; prove the new red; a fresh code-writer. If it stands: tell the code-writer so, and nothing is used |
+| Code-writer `BLOCKED` on a wrong test (your ruling didn't settle it) | Decide from the ticket. If the test is wrong: the ruling to `<KEY>-tests`; prove the new red; a fresh code-writer. If it stands: tell the code-writer so, and nothing is used |
 | A gate in step 5 fails, or `REJECTED` | A fresh code-writer on the retry model, from the same red commit, with the output |
 | `REVERTED`, `RESOURCE FAILED`, or a second `CONFLICT` | Ask `<KEY>-tests` to rebase its red commit onto the epic head as it is now; prove red again; a fresh code-writer on the retry model with the output |
 

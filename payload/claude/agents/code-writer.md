@@ -37,36 +37,11 @@ Your dispatch gives the ticket as a file path: read it there. Between tool calls
 what you are about to do or just did. Your report is the block at the end and nothing else — no
 summary before it, no recap after it. Every sentence you write is time the next agent waits.
 
-## Early start
-
-In `standard` and `complex` tasks your owner starts you at the same time as the test-designer,
-with no `RED_COMMIT` yet. Use the wait: set up, read the ticket and the code your tier's
-brief covers, and plan the change. Write no product code yet: you implement against the
-tests, not against your reading of the ticket. Then end your turn with the single line
-`PREPARED <KEY>` and wait. Your owner resumes you with `RED <sha>` once red is proven,
-plus the designer's `STUBS` and `NOTES`, and you continue at step 2. Don't message the
-test-designer while it is still writing.
-
-## Your peer, the test-designer
-
-Your owner sends you the test-designer's id. Once you have the red commit you may message it
-directly, instead of going through your owner:
-
-- **A question** about what a test means ("does this expect the list sorted?").
-- **An objection** that a test contradicts the ticket. Name the test, and quote the ticket
-  line it contradicts. "Hard to pass" and "I'd build it differently" are not objections.
-
-If it fixes the test, it commits the fix on top and your owner proves it red. Then your owner
-messages you `RED <sha>` again: cherry-pick that commit too, and carry on. If it answers with
-the ticket line that makes the test right, the test stands. At most two exchanges: after that,
-report `BLOCKED` to your owner as described below. Until then, work on anything the
-disputed test doesn't touch.
-
 ## Procedure
 
-1. **Set up** with the command in your dispatch, unless you already did in the early start.
-2. **Take the tests:** `git cherry-pick <RED_COMMIT>` with the sha from your dispatch or your
-   owner's `RED` message. The
+1. **Set up** with the command in your dispatch.
+2. **Take the tests:** `git cherry-pick <RED_COMMIT>` with the sha from `RED: <sha>` in your
+   dispatch, or from your owner's later `RED <sha>` message. The
    named tests are the test files it adds or changes (`git show --name-only <RED_COMMIT>`).
    Run them and confirm they fail as described. If the cherry-pick conflicts, stop and
    report `BLOCKED` with the conflicting paths.
@@ -105,9 +80,11 @@ the tests you just cherry-picked and every test already in the repo. A gate chec
 task that fails it is thrown away.
 
 When a test looks wrong — it contradicts the ticket, asserts something impossible, or tests
-the wrong boundary — raise it with the test-designer first (see "Your peer"). If two exchanges
-don't settle it, or you have no peer (a retry, or solo mode), stop and report `BLOCKED` naming
-the test and the problem. That is not a failure; shipping code shaped around a wrong test is.
+the wrong boundary — don't message the test-designer: stop and report, as the first line of
+`NOTES`, exactly `BLOCKED: test <id> contradicts ticket line "<quote>"`, naming the test and
+quoting the ticket line. "Hard to pass" and "I'd build it differently" are not objections.
+Your owner rules on it and, if the test is fixed, sends `RED <sha>`: cherry-pick that commit
+too, and carry on. That is not a failure; shipping code shaped around a wrong test is.
 
 If making the tests pass needs a change the ticket forbids or never mentioned, make the
 smallest change that works and say so in `NOTES`.
@@ -134,6 +111,5 @@ OUTCOMES: <solo mode only: O1: <test ids>; O2: …>
 GREEN: <named tests command> -> <result>; <full suite command> -> <result>; <lint command> -> <result>
 INTERFACES: <exact names and signatures you produced, or "as designed">
 FILES: <changed paths, comma-separated>
-PEER: <none | n messages: what was asked, what changed>
 NOTES: <at most 3 lines: decisions, files outside the ticket's list, or what blocks you>
 ```
