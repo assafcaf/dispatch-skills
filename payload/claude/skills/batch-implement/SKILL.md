@@ -1,7 +1,7 @@
 ---
 name: batch-implement
 description: Implement a batch of planned tasks test-first. Unblocked tasks run in parallel in isolated worktrees - tests designed first, then code written against them - and each merges only when the definition of done holds. Tracker status moves as it goes. Run as /batch-implement <epic key | task keys | plan path | outcomes>.
-argument-hint: "<epic key | task keys… | plan path | outcomes in quotes>"
+argument-hint: "<epic key | task keys… | plan path | outcomes in quotes> [--mode owner|workflow|spine]"
 disable-model-invocation: true
 ---
 
@@ -9,6 +9,15 @@ disable-model-invocation: true
 
 Input: `$ARGUMENTS`. Read `.claude/workflow/config.md` and
 `.claude/workflow/definition-of-done.md`.
+
+`--mode owner|workflow|spine` picks how tasks run. Without it, the mode defaults to
+`.claude/workflow/config.md`'s Execution → Mode.
+
+`spine` is not available yet: report that and stop.
+
+`workflow` needs the Workflow tool. When it is unavailable, fall back to `owner` and log
+`Ruling: workflow mode unavailable, ran as owner — the Workflow tool is missing — none, owner
+mode is the default`.
 
 You orchestrate and never write product code yourself. You run three layers of agents:
 
