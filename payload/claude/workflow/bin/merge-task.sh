@@ -50,7 +50,16 @@ g() { git -C "$wt" "$@"; }
 infra() { echo "ERROR $key: $1"; exit 2; }
 log="$(mktemp)"
 lock=""
-trap 'rm -f "$log"; [ -z "$lock" ] || rm -rf "$lock"' EXIT
+stopped=()
+# Start again every preview this merge stopped, whether the merge landed or was rejected.
+restart_previews() {
+  local s
+  for s in ${stopped[@]+"${stopped[@]}"}; do
+    bash "$bin/preview.sh" start --surface "$s" --worktree "$wt" >/dev/null 2>&1
+  done
+  stopped=()
+}
+trap 'rm -f "$log"; restart_previews; [ -z "$lock" ] || rm -rf "$lock"' EXIT
 trap 'exit 130' INT
 trap 'exit 143' TERM
 
@@ -139,6 +148,23 @@ outside_only() {
   done
   return 0
 }
+
+# A running preview whose restart trigger this merge touches is stopped before setup, so it can't
+# lock files setup replaces; the exit trap starts it again. A preview that is not running stays so.
+changed_files="$(g diff --cached --name-only "$before")"
+while IFS=$'\t' read -r surf triggers; do
+  [ -n "$surf" ] || continue
+  bash "$bin/preview.sh" status --surface "$surf" --worktree "$wt" 2>/dev/null |
+    tail -n 1 | grep -q '^PREVIEW running ' || continue
+  hit=""
+  for t in ${triggers//,/ }; do
+    t="${t%/}"
+    printf '%s\n' "$changed_files" | grep -qE "^$(printf '%s' "$t" | sed 's/[][\.*^$+?(){}|/]/\\&/g')(/|$)" && hit=1
+  done
+  [ -n "$hit" ] || continue
+  bash "$bin/preview.sh" stop --surface "$surf" --worktree "$wt" >/dev/null 2>&1
+  stopped+=("$surf")
+done <<<"$(bash "$bin/preview.sh" list --worktree "$wt" 2>/dev/null)"
 
 if [ -n "$setup" ]; then
   manifests='^(.*/)?(package\.json|package-lock\.json|npm-shrinkwrap\.json|yarn\.lock|pnpm-lock\.yaml|bun\.lockb|requirements[^/]*\.txt|pyproject\.toml|poetry\.lock|uv\.lock|Pipfile|Pipfile\.lock|setup\.py|setup\.cfg|go\.mod|go\.sum|Cargo\.toml|Cargo\.lock|Gemfile|Gemfile\.lock|composer\.json|composer\.lock)$'
