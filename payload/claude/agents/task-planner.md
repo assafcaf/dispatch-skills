@@ -66,8 +66,12 @@ TIERS:
 - <KEY>: <tier> → suggest <tier> — <signal>: <why>
 GAPS:
 - <what no task creates, and which task should>
+- <surface outcome no task owns>
 RISKS:
 - <KEY>: <risk> — suggest model opus | split | needs an operator decision
 ```
+
+A surface outcome that no task owns blocks the plan: list it under GAPS, and the orchestrator
+must not dispatch until a task owns it.
 
 Say `none` under any heading with nothing to report. Recommend; the orchestrator decides.
