@@ -14,6 +14,8 @@ times, so a leaked process ends by itself; every test stops its preview in a `fi
 """
 from __future__ import annotations
 
+import os
+import sys
 import time
 from pathlib import Path
 
@@ -233,3 +235,66 @@ def test_merge_does_not_start_a_preview_that_was_not_running(
         assert _last(_preview(run_script, repo, "status", epic_wt)) == "PREVIEW stopped web"
     finally:
         _preview(run_script, repo, "stop", epic_wt)
+
+
+def _native_app(beat: Path, ready: Path) -> tuple[str, str]:
+    """A preview whose server is a native (non-shell) grandchild: Python under a bash wrapper.
+
+    On Git Bash for Windows, `kill` on the wrapper's pid does not reach a native child like this
+    one (vite's node.exe in practice), so it kept serving after `stop`.
+    """
+    py = Path(sys.executable).as_posix()
+    script = beat.parent / "native_app.py"
+    script.write_text(
+        "import time, pathlib\n"
+        f"b = pathlib.Path({str(beat)!r})\n"
+        f"pathlib.Path({str(ready)!r}).touch()\n"
+        "for i in range(150):\n"
+        "    b.write_text(str(i)); time.sleep(0.2)\n",
+        encoding="utf-8",
+    )
+    return f"{py} {script.as_posix()}; true", f"test -f {ready.as_posix()}"
+
+
+def test_stop_ends_a_native_grandchild_of_the_preview_shell(tmp_path, repo, worktree, run_script):
+    beat, ready = tmp_path / "nbeat", tmp_path / "nready"
+    start, ready_when = _native_app(beat, ready)
+    wt = _wt_with_config(repo, worktree, "epic", [_row("web", start, ready_when, "")])
+    try:
+        r = _preview(run_script, repo, "start", wt)
+        assert _last(r) == "PREVIEW running web", r.stdout + r.stderr
+        assert _beating(beat)
+        r = _preview(run_script, repo, "stop", wt)
+        assert _last(r) == "PREVIEW stopped web", r.stdout + r.stderr
+        assert _still(beat), "the native server kept running after stop"
+    finally:
+        _preview(run_script, repo, "stop", wt)
+
+
+def test_stop_on_windows_kills_the_process_tree_with_taskkill(
+    tmp_path, repo, surface, run_script
+):
+    """On MSYS/Cygwin, stop runs `taskkill //PID <winpid> //T //F` before the POSIX kill."""
+    wt, beat, _ = surface
+    stubs = tmp_path / "stubs"
+    stubs.mkdir()
+    log = tmp_path / "taskkill.log"
+    (stubs / "uname").write_text(
+        "#!/usr/bin/env bash\necho MINGW64_NT-10.0-19045\n", encoding="utf-8", newline="\n"
+    )
+    (stubs / "taskkill").write_text(
+        f'#!/usr/bin/env bash\necho "$*" >> "{log.as_posix()}"\n', encoding="utf-8", newline="\n"
+    )
+    for f in stubs.iterdir():
+        f.chmod(0o755)
+    _preview(run_script, repo, "start", wt)
+    r = run_script(
+        "preview.sh", "stop", "--surface", "web", "--worktree", wt.as_posix(), cwd=repo,
+        env={"PATH": str(stubs) + os.pathsep + os.environ["PATH"]},
+    )
+    assert _last(r) == "PREVIEW stopped web", r.stdout + r.stderr
+    assert log.is_file(), "taskkill was not called on a Windows host"
+    args = log.read_text().split()
+    assert "//T" in args and "//F" in args, args
+    assert args[args.index("//PID") + 1].isdigit(), args
+    assert _still(beat)
