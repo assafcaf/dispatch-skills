@@ -1,15 +1,32 @@
 ---
 name: setup-workflow
 description: Wire this repo's delivery workflow to a machine and a tracker - detect the environment and the test stack, verify the tracker connection, write the config and the tracker agent, and check the harness is sound. Run once per machine, and again when the tracker or the toolchain changes.
-argument-hint: "[jira | github | local]"
+argument-hint: "[jira | github | local | moves | surfaces | load | capabilities | rehearse | upgrade]"
 disable-model-invocation: true
 ---
 
 # Set up the workflow here
 
-Input: `$ARGUMENTS` names the tracker adapter; ask if it's missing. Nothing in this skill
-creates a ticket or changes product code. Report findings as a checklist: what is ready, what
-you fixed, what the operator must do.
+Input: `$ARGUMENTS` names the tracker adapter (`jira`, `github` or `local`), or one sub-run
+from the table below; ask if it's missing. With no sub-run, setup runs every step in order.
+Nothing in this skill creates a ticket or changes product code. Report findings as a checklist:
+what is ready, what you fixed, what the operator must do.
+
+A sub-run redoes only its own step and skips all the others, so fixing one part of setup does
+not mean running all of it again. It reads the tracker adapter from the config, so a sub-run
+does not ask for the tracker. For an unknown argument, anything else than a tracker or a sub-run
+named here, stop and ask, naming the sub-runs.
+
+| Argument | Redoes |
+|---|---|
+| `moves` | step 5, only its `check-moves.sh` run: the permission rules the Git moves need |
+| `surfaces` | step 7b: rescan the config's surface rows |
+| `load` | step 7c: calibrate suite slots and parallelism again |
+| `capabilities` | step 7e: what Claude Code features this machine has |
+| `rehearse` | step 8: the closing dry run of the delivery path |
+| `upgrade` | step 7f: bring the config up to the installed PAD version |
+
+Preflight names these sub-runs in its failures (`/setup-workflow upgrade`); run the one it names.
 
 ## 1. The machine
 
@@ -48,6 +65,8 @@ Observed <yyyy-mm-dd> by /setup-workflow.
 - Text-file escape hatch: `<python3 | python | py -3>`; stdout <does | does not> need
   `sys.stdout.reconfigure(encoding='utf-8')` before printing non-ASCII
 - Serial resources: <tag: reachable / unreachable>
+- Workflow tool: <available | not available> (Execution → Mode `<workflow | owner>`)
+- Push notifications: <test push confirmed received | not confirmed> on <yyyy-mm-dd>
 ```
 
 Anything true on every machine belongs in `CLAUDE.md` or a skill instead, not here.
@@ -146,6 +165,9 @@ Check, fix what you safely can, and report the rest:
 - `.gitignore` covers `.work/`, `.claude/worktrees/`, `CLAUDE.local.md` and
   `.claude/settings.local.json`.
 - `.claude/workflow/bin/*.sh` are executable (`git ls-files -s`, mode `100755`).
+- The Git moves are allowed: run `bash .claude/workflow/bin/check-moves.sh`. It proves each row
+  of the config's Git moves table against the effective settings; report each row it fails,
+  with the permission rule that would allow it.
 - The config's commands all run here: setup, full suite, lint. Quote the results.
 - Serial resources in the config are reachable, or say which are not.
 - The permission rules still cover what `/batch-implement` runs unattended: `git worktree add`
@@ -208,6 +230,29 @@ disagree. When it does, or when the repo has no `.gitattributes` and the operato
 propose a `.gitattributes` (for example `* text=auto eol=lf`) and show it in full. Never write it
 without the operator's approval: it renormalizes files, and the operator decides. Once approved,
 write it and commit it on its own.
+
+## 7e. Capabilities
+
+Find out which Claude Code features this machine has, and record them.
+
+- **Workflow tool.** Check whether the Workflow tool is available in this session's tools. When
+  it is available, set the config's Execution → Mode to `workflow` in `config.md`; when it is
+  not, set it to `owner`. Ask before changing a Mode the operator already set by hand.
+- **Push notifications.** Send a test push notification to the operator's phone (Remote
+  Control connected), then ask the operator to confirm they received it. Record the answer: an
+  operator who did not receive it, or does not answer, is recorded as not confirmed.
+
+Write both results to `CLAUDE.local.md` (the `Workflow tool:` and `Push notifications:` lines
+of step 1's template), replacing the lines already there.
+
+## 7f. Upgrade
+
+Bring an existing config up to the installed PAD. Run `bash .claude/workflow/bin/preflight.sh`
+and read its `version` failure: it names the sections missing from `config.md`. Add each
+missing section from `.claude/workflow/config.example.md`, keeping every value already in the
+config and leaving its other sections as they are. Then set the config's `PAD version:` line
+to the installed version in `.claude/workflow/VERSION`, and run preflight again: the `version`
+check must pass.
 
 ## 8. Rehearsal
 
