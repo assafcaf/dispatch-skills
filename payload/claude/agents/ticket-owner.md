@@ -98,9 +98,12 @@ a CI bypass. Never edit your own permission settings to get past a denial.
    file's path, the key, the tier and the commands. It writes the red commit and the green
    one. Then prove red (step 3) at its `RED_COMMIT`.
 5. **Check the report.** The code-writer's `GREEN` line must show named tests, full suite and
-   lint all green. Don't run the suite, lint or the diff checks again yourself: the merger
-   re-checks the tests and the weakening independently, then gates the merged head. A second
-   run on the same code finds nothing new.
+   lint all green. Don't run the suite or lint again yourself: the merger gates the merged
+   head. Then, before you submit, run
+   `task-submit.sh <epic head> <RED> <TASK_HEAD> --test-paths "<config test paths>"` from the
+   task's worktree. It checks the shas and that the tests weren't weakened. On `SUBMIT FAIL`,
+   fix it inside the task (send it back to the code-writer or the test-designer) and run it
+   again; submit only once it passes.
 6. **Hand over.** Stop with `SUBMITTED`, and put exactly this block under your report; the
    orchestrator relays it to the merger. The merger's reply resumes you, however long it takes.
    ```
