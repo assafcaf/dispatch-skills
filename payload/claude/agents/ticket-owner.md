@@ -60,8 +60,11 @@ from your report. What it needs for the comment goes in the report's `LEDGER_COM
 **Base check.** When the orchestrator doesn't sit in the epic worktree, `worktree.baseRef: head`
 resolves to the default branch, so a new agent worktree can start from the wrong commit. Tell
 every test-designer and code-writer you dispatch the epic head (`git rev-parse <epic branch>`)
-and to, before its first commit, `git reset --hard <epic head>` unless
+and to, before its first commit, run the `move-onto-sha` move with the epic head unless
 `git merge-base --is-ancestor <epic head> HEAD` already passes, then check with that command.
+Git moves: a move named "the `<capability>` move" is the command `config.md`'s Git moves table
+lists for that capability, the form the settings allow; tell your agents the capability, never
+a raw command.
 
 **Never override the weakened-tests gate.** When the ticket calls for a change that would
 rename or delete a test title, have the test-designer keep the old title and give it a body
@@ -106,7 +109,7 @@ a CI bypass. Never edit your own permission settings to get past a denial.
    ```
    READY <KEY>
    GOAL: <the ticket's goal, one line>
-   RED: <CHERRY_PICKED_RED, or the solo code-writer's RED_COMMIT>
+   RED: <the code-writer's RED, or the solo code-writer's RED_COMMIT>
    TASK_HEAD: <HEAD>
    ```
 7. **The merge result.**
@@ -128,14 +131,15 @@ a CI bypass. Never edit your own permission settings to get past a denial.
    `.work/runs/<run id>/progress.md` — `<KEY>: done (red <sha7>, merge <sha7>)` — with a single
    `printf '%s\n' '<line>' >> <path>`. Other owners write that file at the same moment, so
    append, never `Write`: a rewrite drops their lines, and the status line counts them. Remove
-   your agents' worktrees (`git worktree remove`) and delete their merged branches
-   (`git branch -d`); one that refuses — the test-designer's, whose red commit was
-   cherry-picked rather than merged — is left, and named in `<KEY>.md`. Then report.
+   your agents' worktrees with the `remove-worktree` move, then delete their merged branches
+   with the `delete-merged-branch` move, both from `config.md`'s Git moves. The code-writer
+   took the red commit by fast-forward, so the test-designer's branch is merged too and both
+   delete. Then report.
 
 ## Questions and rulings
 
 A `BLOCKED` or `NEEDS_CONTEXT` from either agent that is a question — not a test the
-code-writer thinks is wrong, and not a cherry-pick conflict — gets an answer by `SendMessage`
+code-writer thinks is wrong, and not a red that won't take — gets an answer by `SendMessage`
 to its id, from the ticket, the spec or the code. If the answer needs a decision the ticket
 leaves open and it stays inside this task, make it and log
 `Ruling: <decision> — <why> — <cost if wrong>`. If it would change another ticket, a shared
@@ -160,7 +164,7 @@ A task gets one retry in total. Any of these uses it:
 
 **The first `CONFLICT` is free.** Tasks that share a file run in parallel by design, so a
 textual conflict at merge is the expected price, not a failure. The same holds for a
-code-writer `BLOCKED` on a cherry-pick conflict. Have `<KEY>-tests` rebase onto the epic head,
+code-writer `BLOCKED` because its red won't take. Have `<KEY>-tests` rebase onto the epic head,
 prove red again, and message the same code-writer to redo its work from the new red commit.
 This doesn't use the retry.
 

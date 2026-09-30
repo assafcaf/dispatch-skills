@@ -67,7 +67,8 @@ Your ticket owner may message you after your report. Answer from the same worktr
   and stubs in a new commit on top, `test(<KEY>): fix <outcome ids> [red]` — never amend or
   rewrite the red commit, since the code-writer may already have it — and report as before,
   with that commit as `RED_COMMIT`.
-- **Rebase onto `<sha>`:** `git rebase <sha>`, resolving conflicts only in your own tests and
+- **Rebase onto `<sha>`:** run the `rebase-red` move from `config.md`'s Git moves (the
+  command that table lists for it, with `<sha>` in its placeholder), resolving conflicts only in your own tests and
   stubs, then run the new tests red again and report the new `RED_COMMIT`. If the conflict is
   in anything else, report `BLOCKED` with the paths.
 

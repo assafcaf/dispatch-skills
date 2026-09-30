@@ -33,7 +33,7 @@ One line, under about 200 characters, in this shape:
 For example:
 
 ```
-- Branch with `git worktree add`, not `git checkout -b`: checkout is denied in settings.json (E5-T3, 2026-09-23)
+- Run the suite as `python -m pytest`, not `pytest` — the bare script isn't on PATH on every host (E5-T3, 2026-09-23)
 ```
 
 1. Read `MEMORY.md` first. If a line already covers it, correct that line instead of adding one.
