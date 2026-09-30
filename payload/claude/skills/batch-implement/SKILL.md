@@ -215,6 +215,44 @@ task to `done`; `FAILED` and `BLOCKED` comment it and leave the status at `doing
 dispatch `tracker`. A `tracker` `FAIL` never stops the run: log the write it missed with
 `run-log.sh`, carry on, and make the missed writes again before you open the PR (step 4).
 
+## Workflow mode
+
+With `--mode workflow` (or Execution → Mode `workflow`), the saved workflow `pad-task`
+(`.claude/workflows/pad-task.js`) replaces the owner and your merges. Steps 1, 2 and 4 are the
+same, and so are the question, halt-log and ruling rules; section 3 changes as follows.
+
+For each ready task (3a), make one `Workflow` call, once per task, in the background. Don't
+write the ledger or the evidence for it: the workflow does.
+
+```
+Workflow({name: 'pad-task', args: {key, ticket, run, epicBranch, epicWorktree, epicHead, tier,
+  commands: {setup, named, full, lint, typecheck}, testPaths, models: {tier, retry}, ruling?}})
+```
+
+`key` is the task key, `ticket` the ticket file's absolute path, `run` the run id,
+`epicBranch` and `epicWorktree` the epic branch and its worktree path, `epicHead`
+`git -C <epic worktree> rev-parse HEAD` now, `tier` from the ticket (3b), `commands` the
+config's setup, named-tests, full-suite, lint and typecheck commands (add `deps` and `lockfile`
+from its Dependency directory and Lockfile rows when set), `testPaths` the config's test paths,
+`models` the tier's model and the retry model, and an optional `goal`, the ticket's goal line,
+for the merge commit. `ruling` is only for a resumed run (below).
+
+The workflow runs test-designer → red proof → code-writer → `task-submit.sh` →
+`merge-task.sh` → ledger, run log and evidence, every script through the `gate-runner` agent.
+It applies the retry rules itself (ticket-owner.md, "One retry"; an agent that returns `null`
+is re-dispatched once and doesn't use the retry), and returns one result line:
+
+| Result | You |
+|---|---|
+| `DONE <KEY> merge <sha7>` | Nothing to record: ledger, run log and evidence are written. Refresh the progress snapshot (3e.2), then fill the free slot (3a) |
+| `FAILED <KEY> <reason>` | Its dependents wait; everything else continues. Fill the free slot |
+| `NEEDS_RULING <KEY> <question>` | Decide it, or park the task as a question (above) |
+
+Answer a `NEEDS_RULING` by resuming that run, not by starting a new one: call `Workflow` again
+with `resumeFromRunId` set to its run id and the same args plus `ruling: "<your ruling>"`, and
+log the `Ruling:` line. The steps already completed replay from cache; only the step that asked
+and the rest run.
+
 ## 4. Finish the epic
 
 Once every owner has reported and no `merge-task.sh` is running, you may commit and push on the

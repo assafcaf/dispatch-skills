@@ -168,6 +168,12 @@ code-writer `BLOCKED` because its red won't take. Have `<KEY>-tests` rebase onto
 prove red again, and message the same code-writer to redo its work from the new red commit.
 This doesn't use the retry.
 
+**A lost agent is re-dispatched once.** When an agent's worktree is lost mid-task (it was
+reaped, or the agent returns with no report because its worktree is gone), dispatch a fresh
+agent in the same role and name once, from its last commit: the last sha it reported, or else
+the red commit for a code-writer and the epic head for a test-designer. That is not the retry:
+it doesn't use the retry. A second lost worktree for the same agent makes the task `failed`.
+
 **In the small tier** there is no `<KEY>-tests`. For red not proven, and for the free rebase,
 message the solo code-writer instead. Every other retry reruns the task in the standard flow,
 from the epic head: a `test-designer`, then a fresh code-writer, both on the retry model. That
