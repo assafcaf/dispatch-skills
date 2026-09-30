@@ -44,7 +44,7 @@ should not pay for a large one's safeguards.
 
 | Tier | When | How `/batch-implement` runs it |
 |---|---|---|
-| `small` | One outcome (two at most), about 1–3 files, extends a pattern the code already has — a field, a prop, a rule, a copy change — and produces no interface another task consumes | One `code-writer` in solo mode writes the red commit, then the green one. Red is still proven by `verify-red.sh`, and the merger still checks that no test was weakened. The ticket moves only to doing and to done |
+| `small` | One outcome (two at most), about 1–3 files, extends a pattern the code already has — a field, a prop, a rule, a copy change — and produces no interface another task consumes | One `code-writer` in solo mode writes the red commit, then the green one. Red is still proven by `verify-red.sh`, and `merge-task.sh` still checks that no test was weakened. The ticket moves only to doing and to done |
 | `standard` | The default: one to three outcomes, a new module or behaviour that follows known patterns | A `test-designer` writes the red commit, and a separate `code-writer` makes it pass |
 | `complex` | Design judgment across modules, a new interface other tasks consume, persistence or migration, concurrency, or a serial resource | As `standard`, on the stronger models and with a wider reading brief |
 

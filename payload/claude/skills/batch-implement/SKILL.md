@@ -15,7 +15,6 @@ You orchestrate and never write product code yourself. You run three layers of a
 | Agent | Does | Dispatched by |
 |---|---|---|
 | `task-planner` | Waves, file conflicts, interface mismatches, risks | You, once, before the first wave |
-| `epic-merger` | The epic branch's only writer: re-checks, merges, gates, pushes, reverts | You, once, after the baseline |
 | `ticket-owner` | One task from `doing` to `done`: its tests, its code, its gates, its ticket and run-log entry | You, one per task |
 | `test-designer` | The task's failing tests + stubs, committed red | Its ticket owner |
 | `code-writer` | Makes those tests pass, suite and lint green | Its ticket owner |
@@ -24,15 +23,15 @@ You orchestrate and never write product code yourself. You run three layers of a
 
 You pick the waves, answer what the owners can't settle, run the serial resources, and finish
 the epic. A task's detail stays with its owner: you act on one report per task, not every step
-of it. Owners and the merger also stop in between — `SUBMITTED`, the merger's per-merge line —
-and each stop reaches you as a notification; end that turn without a tool call. That is the
+of it. Owners also stop in between, at `SUBMITTED`, and each `merge-task.sh` you run in the
+background ends with a notification of its own; act on it as 3c says, then end that turn. That is the
 point of the layer — every turn you take re-reads your whole context, so a
 task's forty small steps cost far less in an owner's short context than in yours. There is no
 code review: a task is done when the definition of done holds.
 
 **Names and addresses.** Give every dispatch a description that names what it works on:
-`<epic key>-merger`, `<task key>-owner`. Owners name theirs `<task key>-tests` and `-code`. The name is for people reading logs; messages are routed by the agent id each
-dispatch returns, so keep the merger's id and every owner's id, and reply to a message at its
+`<task key>-owner`. Owners name theirs `<task key>-tests` and `-code`. The name is for people reading logs; messages are routed by the agent id each
+dispatch returns, so keep every owner's id, and reply to a message at its
 `from` address.
 
 **Wait for notifications; never poll.** An agent's report arrives on its own when it stops.
@@ -46,21 +45,17 @@ waves. When the tickets don't settle something, decide it and log
 - changing shared state other than the epic branch and its tickets (`main`, a serial
   resource's current state, other tickets)
 - a baseline that is already red
-- `tracker` reporting `FAIL`, or its tools being unavailable: the run's record would silently
-  stop matching the code
-- the merger stopping with `FAIL`: it holds every task it hasn't answered until you send it
-  `CONTINUE`
 
 **A question parks one task, not the run.** Send the operator a push notification with the
 task key and the question, and append it to the run log as `QUESTION <KEY>: <question>` with
 `bash .claude/workflow/bin/run-log.sh <run id> "QUESTION <KEY>: <question>"`. Then park only
 that task: its owner waits for your answer, and its dependents wait with it — they are not
-ready until it is done. A question that belongs to no one task (a red baseline, a `tracker`
-`FAIL`, a merger `FAIL`) uses the epic key and parks what it holds. Never call `AskUserQuestion`
+ready until it is done. A question that belongs to no one task (a red baseline) uses the epic
+key. Never call `AskUserQuestion`
 for a question: it blocks the whole session until someone answers.
 
-**Everything else keeps moving while a task is parked.** Keep dispatching ready tasks, relaying
-`SUBMITTED` reports and letting the merger merge them. The operator answers by typing into this
+**Everything else keeps moving while a task is parked.** Keep dispatching ready tasks, running
+`merge-task.sh` for each `SUBMITTED` report. The operator answers by typing into this
 session while it runs: log the answer as a `Ruling:` line, `SendMessage` it to the parked
 owner, which resumes from where it stopped, and fill any slot the unparked task's dependents
 open.
@@ -78,7 +73,7 @@ in the main checkout. The class names where the fix belongs: `pad` (this workflo
 `harness` (Claude Code itself). When the halt resolves, log a second line with the same run id,
 key, class and cause, and what unblocked it in place of `pending`.
 
-**Never override the weakened-tests gate.** No ruling lets the merger accept a test that
+**Never override the weakened-tests gate.** No ruling lets a merge accept a test that
 `weakened-tests.sh` flags, even when the spec calls for the rename or deletion. The owner keeps
 the old test title with a body that asserts the new truth, and the gate passes as it is. An
 override reads as a CI bypass to a permission classifier, which then denies every later step
@@ -109,11 +104,11 @@ time with `printf '%s
 with a `done`, `failed` or `blocked` line keeps it. A task in the doing status with none of
 those starts over — remove any worktree and branch from its earlier attempt
 (`git worktree list`) — and that doesn't use up its retry. A task whose `Merge <KEY>` commit is
-on the epic branch but has no `done` line isn't restarted: gate the epic head, push, and have
-record it done (3f). Start a new merger (2.6).
+on the epic branch but has no `done` line isn't restarted: gate the epic head, push, and
+record it done (3f).
 
 **After compaction in the same session,** the agents are still running: restart nothing. The
-run log's `agents:` lines give you back the merger's id and each owner's; trust the run log and
+run log's `agents:` lines give you back each owner's id; trust the run log and
 `git log` over your memory.
 
 ## 2. Start
@@ -141,18 +136,13 @@ run log's `agents:` lines give you back the merger's id and each owner's; trust 
    sets a `Preview start` command, start it in the background from the epic worktree, so each merge shows up
    live for the operator. Restart it (after setup) when a merge changes a dependency manifest,
    lockfile or build config, or the page goes stale.
-6. **Start the merger.** Dispatch `epic-merger` as `<epic key>-merger` with the epic branch,
-   the run id, the setup, full-suite and lint commands, and the test paths. Append
-   `agents: <epic key>-merger <id>` to the run log. It stops with `STARTED`; a `FAIL` is a
-   question to the operator. There is one merger per session: the epic branch's `git log` is its whole state, so
-   a new session starts a fresh one, and nothing else does.
 
 ## 3. Run waves until no task is left
 
 **a. Fill the free slots.** Ready tasks are those not done whose blockers are all done. Start
 them in key order up to the parallelism limit, skipping only a task the planner listed under
-`CONFLICTS` with one already running. Sharing a file is not a conflict: the merger merges
-additions to one file, and a real conflict comes back as `CONFLICT` and is rebased. Don't wait
+`CONFLICTS` with one already running. Sharing a file is not a conflict: `merge-task.sh`
+merges additions to one file, and a real conflict comes back as `CONFLICT` and is rebased. Don't wait
 for a whole wave to close. Whenever an owner reports `DONE`, `FAILED` or `BLOCKED`, start
 whatever is ready now. The waves are the plan's order, not a barrier.
 
@@ -162,31 +152,30 @@ the task's tier (`small` | `standard` | `complex` from its `## Tier` section; a 
 none is `standard`, and one labelled `complex` is `complex`), the run id and epic branch, the
 setup, named-tests, full-suite and lint commands, the config's test paths, that tier's models
 and the retry model (per the config's Tiers table), any interface correction from an earlier
-owner's `INTERFACES`. Never the merger's id: only you message the merger. An agent in an
-isolated worktree that resumes it leaves it isolated there, unable to run git in the epic
-worktree.
+owner's `INTERFACES`.
 
-From here each owner proves red, gates its branch and hands it to you for
-the merger; the merger merges one task at a time and gates the epic head after each merge. You
-don't repeat their checks.
+From here each owner proves red, gates its branch and hands it to you. You land it with
+`merge-task.sh`, which takes the merge lock, so tasks merge one at a time, each gated on the head
+the one before produced. You don't repeat the owner's checks.
 
-**c. Act on the reports.** Owners and the merger each stop with a short block. Act only on:
+**c. Act on the reports.** Owners stop with a short block, and each `merge-task.sh` run ends
+with one last line. Act only on:
 
 | Report | You |
 |---|---|
-| Owner `SUBMITTED` | Check the `READY` block's shas (above). Relay it to the merger unchanged, with one line added: `OWNER: <the owner's id>`. A bad sha goes back to the owner instead |
+| Owner `SUBMITTED` | Run `bash .claude/workflow/bin/merge-task.sh --worktree <epic worktree> --branch <epic branch> --setup "<setup>" --gate "<full suite>" --lint "<lint>" --test-paths "<test paths>" <KEY> <RED> <TASK_HEAD> "<GOAL>"` with the `READY` block's values, in the background (`run_in_background`), and end your turn. When it exits, `SendMessage` the owner its last line unchanged (`MERGED …`, `REJECTED …` or `CONFLICT …`), except in the two cases below |
+| `merge-task.sh` `REJECTED` whose failing tests all sit in files the task didn't touch and doesn't import | A false positive: the script already reran them once. Resubmit it once: rerun `merge-task.sh` in the background with the same `RED` and the same `TASK_HEAD`. This doesn't use the task's retry, and the owner hears only the rerun's last line |
+| `merge-task.sh` exit 2 (`ERROR <KEY>: …`) | Infrastructure, not the task. Run it once more, from a fresh start in the background; when the error says the merge is committed locally, the fresh start is the config's `push-epic` move instead, and the owner then gets `MERGED <sha>`. A second `ERROR` is a question (above): park that task. It never uses the task's retry |
 | Owner `NEEDS_RULING` | Decide it, log `Ruling: <decision> — <why> — <cost if wrong>`, and `SendMessage` the answer to the owner. If it needs the operator, it's a question (above): park the task |
-| Owner `MERGED_PENDING_RESOURCE` | Run its `RESOURCE_PROBES`, one at a time across the whole run, with the configured runner, at the merge sha — from a throwaway `git worktree add --detach`, because the merger keeps merging in the epic worktree meanwhile. Keep the output in the run log. Pass: message the owner `RESOURCE PASSED` with the output tail. Fail: message the merger `REVERT <key> <merge sha>`, wait for its `REVERTED` line, then message the owner `RESOURCE FAILED` with the output |
+| Owner `MERGED_PENDING_RESOURCE` | Run its `RESOURCE_PROBES`, one at a time across the whole run, with the configured runner, at the merge sha — from a throwaway `git worktree add --detach`, because other merges keep landing in the epic worktree meanwhile. Keep the output in the run log. Pass: message the owner `RESOURCE PASSED` with the output tail. Fail: once no `merge-task.sh` is running, revert that merge in the epic worktree with the config's `revert-merge` move (`## Git moves`), run the full suite and lint there, push with `push-epic`, then message the owner `RESOURCE FAILED` with the output. A serial-resource failure after a merge is the only reason a merge is ever reverted |
 | Owner `DONE`, `FAILED`, `BLOCKED` | Record it (3f) from the owner's report, then fill the free slot (a). A failed or blocked task's dependents wait; everything else continues |
-| Merger `REVERTED <KEY>` whose failing tests are all in files the task didn't touch and doesn't import | Rerun the full suite at the merge sha from a throwaway `git worktree add --detach`. Green means a false positive: message the merger `REMERGE <KEY> <revert sha>` with `OWNER: <id>`. The re-merge doesn't use the task's retry |
-| Merger `FAIL: …; holding …` | A question (above): it parks the held tasks. Once the operator has fixed it, message the merger `CONTINUE`; the held owners are still waiting and need nothing from you |
 
-Everything else — the merger's `MERGED` / `REJECTED` / `CONFLICT` and other `REVERTED` lines —
-is for the log; the owner already has it and handles its own retry. A flake that forces reruns
-is fixed at its cause (`.claude/workflow/testing.md`, "Pass under load"), not rerun again.
+Every other last line goes to the owner as it is, and into the log; the owner handles its own
+retry. A flake that forces reruns is fixed at its cause (`.claude/workflow/testing.md`, "Pass
+under load"), not rerun again.
 
-**d. Inline instead** when the whole run is one task: skip the owner and the merger, and do
-every role yourself, in order, in the epic worktree (or the current branch for quoted
+**d. Inline instead** when the whole run is one task: skip the owner, and do every role
+yourself, landing it with `merge-task.sh`, in order, in the epic worktree (or the current branch for quoted
 outcomes). Same gates, same run-log line, and the same tracker comments when there is a
 tracker.
 
@@ -213,18 +202,18 @@ and the tier. On an owner's report, record from its `LEDGER_COMMENT` line: `DONE
 task to `done`; `FAILED` and `BLOCKED` comment it and leave the status at `doing`. With the
 `local` adapter run `bash .claude/workflow/bin/ledger.sh <KEY> status <doing|done> "<comment>"`
 (or `ledger.sh <KEY> comment "<text>"`) from the epic worktree; with any other adapter,
-dispatch `tracker`. A `tracker` `FAIL` is a question to the operator.
+dispatch `tracker`. A `tracker` `FAIL` never stops the run: log the write it missed with
+`run-log.sh`, carry on, and make the missed writes again before you open the PR (step 4).
 
 ## 4. Finish the epic
 
-Once every owner has reported and the merger has answered every `READY`, the merger is idle and
-you may commit and push on the epic branch yourself. Final-review fixes (step 2) go back through
-it, so refresh the knowledge layer and write the development record after they land.
+Once every owner has reported and no `merge-task.sh` is running, you may commit and push on the
+epic branch yourself. Final-review fixes (step 2) land through `merge-task.sh` like any task, so refresh the knowledge layer and write the development record after they land.
 
 1. **Full gates** at the epic head.
 2. **Final review.** If config sets a level, run `/code-review <level>`; fix only correctness
    findings, test-first: one `ticket-owner` per fix, dispatched with a slug instead of a ticket
-   key, through the same merger. In an inline run, fix them inline.
+   key, landed by `merge-task.sh`. In an inline run, fix them inline.
 3. **Knowledge refresh.** Only when the config's `## Project knowledge` section is `Mode: on`.
    Run `/knowledge-layer refresh` against the epic head. Approve its cited lines (terms,
    modules, paths, overlaps) as a ruling; What this repo is, Invariants and Pitfalls stay as

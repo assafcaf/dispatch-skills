@@ -32,7 +32,6 @@ in the agent file.
 | Tracker | `tracker` | `haiku` | The only agent with tracker tools. Every ticket read and write goes through it |
 | Planning | `task-planner` | `sonnet` | Read-only. Runs once per `/batch-implement` run |
 | Task ownership | `ticket-owner` | `sonnet` | One per task. Runs the task's test-designer and code-writer, proves red, gates the branch, moves the ticket |
-| Merging | `epic-merger` | `sonnet` | One per run. The epic branch's only writer: re-checks, merges one task at a time, gates, pushes |
 | Tests | `test-designer` | `sonnet` | Its own worktree, dispatched by the ticket owner. Writes the failing tests and stubs |
 | Code | `code-writer` | `sonnet` | Its own worktree, dispatched by the ticket owner. Cherry-picks the red commit; may not change tests |
 | Knowledge scan | `knowledge-scanner` | `sonnet` | Read-only. Several at once, and only during `/knowledge-layer` |
@@ -53,11 +52,11 @@ A ticket with no `## Tier` section is `standard`; one labelled `complex` is `com
 
 **Thinking effort** is set in an agent file's `effort:` field, and a dispatch can't override it,
 so it can't follow a task's tier. The coordinators, whose work is the same in every task, have
-one: `ticket-owner` `medium` (it makes the occasional ruling), `epic-merger` `low`. The test
+one: `ticket-owner` `medium` (it makes the occasional ruling). The test
 and code agents inherit the session's effort; their tier brief ("Effort by tier") is what
 scales their reading and thinking.
 
-**Memory.** `test-designer`, `code-writer`, `ticket-owner`, `epic-merger` and `tracker` have
+**Memory.** `test-designer`, `code-writer`, `ticket-owner` and `tracker` have
 `memory: project`: each keeps lessons in `.claude/agent-memory/<agent>/MEMORY.md`, committed and
 loaded on every start. The rules are in `.claude/workflow/agent-memory.md`, and
 `memory-curator` enforces them at the end of each epic.
@@ -191,5 +190,5 @@ The places where the product is seen or used. Optional; none are configured.
   a waiting merge gate goes first. `PAD_SUITE_SLOTS` overrides it.
 - **Final review:** `off`. Set to a `/code-review` level (`low`, `medium`, …) to run one
   review over the finished epic branch before the PR.
-- **Publishing:** the merger pushes the epic branch to `origin` after each merge, so tracker comments cite
+- **Publishing:** `merge-task.sh` pushes the epic branch to `origin` after each merge, so tracker comments cite
   fetchable commits. Open the epic PR as a draft. Never merge it.
