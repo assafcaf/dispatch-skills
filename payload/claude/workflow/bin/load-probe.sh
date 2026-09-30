@@ -5,7 +5,8 @@
 #
 # Runs the suite once alone, then N copies at once. Prints `RUN <i> exit <code> <seconds>s` for
 # each concurrent copy (i = 1..N), `LOAD-ONLY FAILURES: <ids | none>` (test ids that failed under
-# load and not alone, read from pytest-style `FAILED <id> - ...` lines), then last
+# load and not alone, read from pytest's `FAILED <id> - ...` or vitest's ` FAIL  <id>` lines),
+# then last
 # `SUGGEST slots=<n> parallelism=<n>`. Exit 0 when load changed nothing, 1 when it broke a test,
 # 64 on bad usage (no SUGGEST line).
 
@@ -24,7 +25,15 @@ trap 'rm -rf "$tmp"' EXIT
 
 now() { if [ -n "${EPOCHREALTIME:-}" ]; then echo "${EPOCHREALTIME/,/.}"; else date +%s; fi; }
 
-failed_ids() { sed -n 's/^FAILED \([^ ]*\).*/\1/p' "$@" | tr -d '\r' | sort -u; }
+# Failed test ids, colour stripped: pytest's `FAILED <id> - <reason>`, and vitest's
+# ` FAIL  <file> > <suite> > <test>` (jest's file-level `FAIL <file>` matches it too).
+esc=$(printf '\033')
+failed_ids() {
+  sed -E -e "s/${esc}\[[0-9;?]*[a-zA-Z]//g" -e 's/\r$//' "$@" \
+    | sed -n -E -e 's/^FAILED ([^ ]+).*/\1/p' \
+        -e 's/^[[:space:]]*FAIL[[:space:]]+(.*[^[:space:]])[[:space:]]*$/\1/p' \
+    | sort -u
+}
 
 "$@" >"$tmp/alone.out" 2>&1 </dev/null
 

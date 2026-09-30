@@ -67,3 +67,18 @@ def test_install_writes_the_pad_version_into_config(repo):
     config = (repo / ".claude" / "workflow" / "config.md").read_text(encoding="utf-8")
     assert f"PAD version: {version}" in config.splitlines()
     assert "<PAD_VERSION>" not in config
+
+
+def test_install_ships_the_config_example_even_when_a_config_exists(repo):
+    """/setup-workflow upgrade adds missing sections from `.claude/workflow/config.example.md`,
+    so the template is installed and refreshed; only config.md itself is the project's."""
+    config = repo / ".claude" / "workflow" / "config.md"
+    config.parent.mkdir(parents=True, exist_ok=True)
+    config.write_text("# Workflow config\n\nmine\n", encoding="utf-8")
+    assert _install(repo).returncode == 0
+    example = repo / ".claude" / "workflow" / "config.example.md"
+    assert example.is_file()
+    assert example.read_text(encoding="utf-8") == (
+        PAYLOAD / "claude" / "workflow" / "config.example.md"
+    ).read_text(encoding="utf-8")
+    assert config.read_text(encoding="utf-8") == "# Workflow config\n\nmine\n"

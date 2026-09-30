@@ -124,8 +124,9 @@ done
 
 say ""
 say "Workflow -> .claude/workflow/"
-# config.example.md becomes config.md below; the rest tracks upstream.
-for f in $(cd "$SRC" && find claude/workflow -type f ! -name config.example.md | sort); do
+# All of it tracks upstream. config.example.md is also the template config.md is written from
+# below; it is installed too, because /setup-workflow upgrade adds missing sections from it.
+for f in $(cd "$SRC" && find claude/workflow -type f | sort); do
   install_file "$f" ".${f}"
 done
 install_file "claude/statusline.py" ".claude/statusline.py"

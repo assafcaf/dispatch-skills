@@ -75,6 +75,14 @@ do_stop() {
   local p
   p="$(cat "$pidfile" 2>/dev/null)"
   if [ -n "$p" ]; then
+    # On Git Bash / MSYS / Cygwin, kill reaches the shell but not a native child under it (node,
+    # python), which keeps serving. taskkill /T ends the whole Windows process tree first.
+    case "$(uname -s 2>/dev/null)" in
+      MINGW*|MSYS*|CYGWIN*)
+        local w
+        w="$(cat "/proc/$p/winpid" 2>/dev/null)"
+        taskkill //PID "${w:-$p}" //T //F >/dev/null 2>&1 ;;
+    esac
     pkill -P "$p" 2>/dev/null
     kill "$p" 2>/dev/null
     for _ in 1 2 3 4 5 6 7 8 9 10; do kill -0 "$p" 2>/dev/null || break; sleep 0.2; done
