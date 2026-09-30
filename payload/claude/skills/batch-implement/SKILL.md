@@ -289,8 +289,9 @@ epic branch yourself. Final-review fixes (step 2) land through `merge-task.sh` l
 6. **Push and open a draft PR** (`gh pr create --draft`) whose body has the epic link, a table
    of tasks (key, outcomes, merge sha), the rulings, failed or blocked tasks, what was not
    verified, and an **Agent memory** section: the curator's `CHANGED` lines, its
-   `PROJECT_MD_CANDIDATES` (for the operator to add to `project.md` or drop), and its
-   `UPSTREAM_FIXES`. Then have `tracker` move the epic to the review status and comment the PR
+   `PROJECT_MD_CANDIDATES` (for the operator to add to `project.md` or drop), its
+   `UPSTREAM_FIXES`, its `LOCAL_CANDIDATES` (for `CLAUDE.local.md`) and its
+   `REPEATED_RULINGS` (questions for the next `/tickets`), each group listed separately. Then have `tracker` move the epic to the review status and comment the PR
    URL. Stop the local app if you started one.
 7. **Report:** the PR URL, done / failed / blocked counts, and every `Ruling:` line — those are
    the decisions you made on the operator's behalf.
