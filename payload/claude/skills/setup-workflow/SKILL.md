@@ -189,6 +189,26 @@ point column, and ask the operator for the other columns. This runs even when kn
 off: the rows belong to the config, not to the knowledge layer. Then run `knowledge-paths.sh`,
 which fails on an entry point that does not resolve.
 
+## 7c. Load probe
+
+Calibrate how many suites can run at once. Run, with the config's full suite command:
+
+```bash
+bash .claude/workflow/bin/load-probe.sh <N> -- <full suite cmd>
+```
+
+It runs the suite alone, then N copies at once, and lists the tests that failed only under load.
+Its last line, `SUGGEST slots=<n> parallelism=<n>`, is what to propose to the operator for the
+config's suite slots and parallelism. Write them only once the operator accepts.
+
+## 7d. Line endings
+
+Preflight's `line-endings` check fails when `core.autocrlf` and the repo's `.gitattributes`
+disagree. When it does, or when the repo has no `.gitattributes` and the operator is on Windows,
+propose a `.gitattributes` (for example `* text=auto eol=lf`) and show it in full. Never write it
+without the operator's approval: it renormalizes files, and the operator decides. Once approved,
+write it and commit it on its own.
+
 ## 8. Rehearsal
 
 The closing step: run it after every other step, once the config and the harness are final.

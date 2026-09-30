@@ -22,6 +22,8 @@
 #                         table's `standard` row for test-designer and code-writer
 #   executable            every .claude/workflow/bin/*.sh is mode 100755 in the git index
 #   gitignore             .gitignore covers .work/ and .claude/worktrees/
+#   line-endings          core.autocrlf and .gitattributes agree: not autocrlf=true with
+#                         `eol=lf`, nor autocrlf false/input with `eol=crlf`
 #
 # Output: one `PREFLIGHT FAIL <check>: <detail>` line per failure, then `PREFLIGHT OK` or
 # `PREFLIGHT FAILED <n>`. Exit 0 when every check passes, 1 otherwise (a missing config or bad
@@ -287,6 +289,20 @@ check_gitignore() {
   done
 }
 
+check_line_endings() {
+  local auto eol=""
+  git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
+  [ -f .gitattributes ] || return 0
+  auto="$(git config --get core.autocrlf 2>/dev/null | tr -d '\r' | tr 'A-Z' 'a-z')"
+  grep -Eq 'eol=lf([[:space:]]|$)' .gitattributes && eol=lf
+  grep -Eq 'eol=crlf([[:space:]]|$)' .gitattributes && eol=crlf
+  if [ "$auto" = true ] && [ "$eol" = lf ]; then
+    fail line-endings "core.autocrlf=true converts to CRLF but .gitattributes forces eol=lf: set core.autocrlf to input or false, or change .gitattributes"
+  elif [ "$auto" != true ] && [ "$eol" = crlf ]; then
+    fail line-endings "core.autocrlf=${auto:-unset} but .gitattributes forces eol=crlf: set core.autocrlf=true, or change .gitattributes"
+  fi
+}
+
 # --- run -------------------------------------------------------------------------------------
 
 if [ -f "$config" ]; then
@@ -304,4 +320,5 @@ if [ -f "$config" ]; then
 fi
 check_executable
 check_gitignore
+check_line_endings
 finish
