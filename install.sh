@@ -24,6 +24,10 @@
 # have it regenerated.
 #
 # Re-running is safe: identical files are skipped.
+#
+# Run from a git checkout of PAD, it records the commit in .claude/workflow/pad.lock, which is
+# where /pad-update starts from. From a packaged copy the commit is unknown and no lock is
+# written; /pad-update then finds the commit by comparing files.
 
 set -u
 
@@ -53,7 +57,7 @@ while [ $# -gt 0 ]; do
     --no-config)     do_config=no; shift ;;
     --force)         force=yes; shift ;;
     --dry-run)       dry=yes; shift ;;
-    -h|--help)       sed -n '2,27p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help)       sed -n '2,31p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) printf '%s: unknown option %s\n' "$SELF" "$1" >&2; exit 2 ;;
   esac
 done
@@ -136,6 +140,40 @@ say "Workflows -> .claude/workflows/"
 for f in $(cd "$SRC" && find claude/workflows -type f | sort); do
   install_file "$f" ".${f}"
 done
+
+# --- The PAD commit these files came from --------------------------------------------------
+# /pad-update merges from the commit recorded here. Only a clean git checkout knows its commit;
+# a lock left by an earlier install no longer describes the files just written, so it goes.
+write_lock() {
+  local root="$SRC/.." lock=".claude/workflow/pad.lock" commit="" source_url last
+  if git -C "$root" rev-parse --show-toplevel >/dev/null 2>&1 \
+     && [ -z "$(git -C "$root" status --porcelain -- payload 2>/dev/null)" ]; then
+    commit="$(git -C "$root" rev-parse --verify --quiet HEAD 2>/dev/null)"
+  fi
+  if [ -z "$commit" ]; then
+    if [ -f "$project/$lock" ]; then
+      act "remove $lock (this copy of PAD does not know its commit)"
+      [ "$dry" = yes ] || rm -f "$project/$lock"
+    fi
+    say "  no $lock written: /pad-update finds the commit by comparing files"
+    return 0
+  fi
+  source_url="$(git -C "$root" config --get remote.origin.url 2>/dev/null)"
+  last="$(cd "$SRC" && ls migrations 2>/dev/null | grep -E '^[0-9]{4}-.*\.md$' | sort | tail -n 1)"
+  [ -n "$last" ] || last="0000"
+  act "write $lock"
+  [ "$dry" = yes ] || {
+    echo "# The PAD commit this project's harness came from. Written by the installer and /pad-update; commit it."
+    echo "source: ${source_url:-https://github.com/assafcaf/pad}"
+    echo "commit: $commit"
+    echo "version: $(tr -d '\r' < "$SRC/claude/workflow/VERSION" | head -n 1 | tr -d '[:space:]')"
+    echo "migration: ${last%%-*}"
+  } > "$project/$lock"
+}
+
+say ""
+say "Update lock -> .claude/workflow/pad.lock"
+write_lock
 
 say ""
 say "Development record -> docs/decisions/"
