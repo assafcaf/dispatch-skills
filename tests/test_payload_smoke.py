@@ -8,7 +8,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 PAYLOAD = ROOT / "payload" / "claude"
 
-SKILLS = ["batch-implement", "knowledge-layer", "setup-workflow", "spec", "tickets"]
+SKILLS = ["batch-implement", "knowledge-layer", "pad-update", "setup-workflow", "spec", "tickets"]
 AGENTS = [
     "code-writer",
     "epic-merger",

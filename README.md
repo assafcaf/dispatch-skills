@@ -167,10 +167,35 @@ discovers what the installer can't (statuses, transition ids, how tasks attach t
 the config's commands, installs the status line, asks whether you want the knowledge layer, and offers a short
 section for your `CLAUDE.md`.
 
+## Updating
+
+PAD keeps changing. In an installed project, run **`/pad-update`** to bring the harness up to
+PAD's latest commit (or `/pad-update <ref>` for a named one). It clones PAD, and on a branch:
+
+- updates every file PAD ships, with a three-way merge against the PAD commit the project was
+  installed from (`.claude/workflow/pad.lock`): untouched files are replaced, files only the
+  project changed are kept, files both changed are merged, and you are asked only about a real
+  conflict;
+- deletes files PAD retired, unless the project changed them;
+- runs the migration notes in `payload/migrations/` the project has not handled yet: the
+  changes copying files cannot make;
+- brings `config.md` up to the new version, runs preflight and the rehearsal, and opens a pull
+  request that lists what changed and what is left for you (permission rules are never written
+  for you).
+
+A project installed before `/pad-update` existed has no lock and no such skill. Get the skill
+by re-running the installer once, or by copying `payload/claude/skills/pad-update/` into
+`.claude/skills/`; the first run finds the commit the harness came from by comparing files and
+asks you to confirm it.
+
+When a push to PAD needs more than file copies in the projects that use it, add a note:
+`payload/migrations/README.md` has the format.
+
 ## What lands where
 
 ```
-.claude/skills/{spec,tickets,batch-implement,setup-workflow,knowledge-layer}/
+.claude/skills/{spec,tickets,batch-implement,setup-workflow,knowledge-layer,pad-update}/
+.claude/workflow/pad.lock               the PAD commit the harness came from; committed
 .claude/agents/{tracker,task-planner,ticket-owner,test-designer,code-writer,epic-merger,memory-curator,knowledge-scanner}.md
 .claude/agent-memory/<agent>/MEMORY.md  each agent's lessons, committed; created as agents learn
 .claude/workflow/config.md              ← yours: tracker, commands, paths, models, resources
