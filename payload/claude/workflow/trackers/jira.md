@@ -2,7 +2,9 @@
 
 Through the `atlassian` MCP server. Every call takes `cloudId` from `config.md`. Bodies are
 Markdown (`contentFormat: markdown` / `responseContentFormat: markdown`). If the tools are not
-available in the session, say so and stop; do not fall back to another tracker.
+available in the session, say so and stop; do not fall back to another tracker. The tracker agent
+holds only the Jira tools this table names (`setup-workflow/tracker-agent-template.md`); a tool
+added to a row here is added to the template too.
 
 | Operation | How |
 |---|---|

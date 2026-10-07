@@ -124,7 +124,8 @@ connection to check.
 
 Then write `.claude/agents/tracker.md` from
 `.claude/skills/setup-workflow/tracker-agent-template.md`: fill in the adapter name and the
-tools it needs (`mcp__atlassian` for Jira, `Bash` for GitHub, `Read, Edit, Write` for local).
+tools from the template's table: for Jira, the eight Jira tools the adapter's operations use,
+never the whole `mcp__atlassian` server; `Bash` for GitHub; `Read, Edit, Write, Glob` for local.
 Everything else the agent reads from the config at run time.
 
 ## 4. The status line
