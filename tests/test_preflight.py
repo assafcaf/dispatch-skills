@@ -8,7 +8,7 @@ points at an empty directory so the host's own settings never leak in. The insta
 version is `VERSION` beside `bin/` (payload/claude/workflow/VERSION).
 
 Check names used below: moves, commands, knowledge-paths, version, dependency-directory,
-lockfile, models, executable, gitignore.
+lockfile, models, plugins, executable, gitignore.
 
 Every repo, config, settings file and agent file is built here; nothing reads this repo's own
 .claude/.
@@ -115,6 +115,10 @@ SECTIONS = {
 |---|---|---|
 | Wave starts | → doing | run id and epic branch |
 """,
+    "Plugins": """| Plugin | Extends | Adds |
+|---|---|---|
+{plugins}
+""",
     "Paths": """| What | Where | Committed |
 |---|---|---|
 | Working specs | `.work/specs/<yyyy-mm-dd>-<slug>.md` | no |
@@ -163,6 +167,7 @@ def config_md(
     lock: str = "none",
     entry: str = "http://localhost:5173",
     preview: str = "npm run dev",
+    plugins: str = "",
 ) -> str:
     out = ["# Workflow config", ""]
     if version is not None:
@@ -174,6 +179,8 @@ def config_md(
             body = body.format(dep=dep, lock=lock)
         elif heading == "Surfaces":
             body = body.format(entry=entry, preview=preview)
+        elif heading == "Plugins":
+            body = body.format(plugins=plugins)
         out += [f"## {heading}", "", body]
     return "\n".join(out)
 
@@ -351,6 +358,34 @@ def test_o39_an_agent_model_that_differs_from_the_tiers_table_fails_the_models_c
 ):
     install(repo, models={agent: model})
     assert_failed(preflight(repo), "models", agent)
+
+
+PLUGIN = ".claude/pad-plugins/attachments.md"
+
+
+def _with_plugin(repo: Path, extends: str, write: bool = True) -> Path:
+    install(repo, config=config_md(plugins=f"| `{PLUGIN}` | `{extends}` | attachments |"))
+    if write:
+        (repo / PLUGIN).parent.mkdir(parents=True)
+        (repo / PLUGIN).write_text("# Plugin: attachments\n\nExtends: `tracker`\n",
+                                   encoding="utf-8")
+    return repo
+
+
+def test_plugins_a_listed_plugin_that_exists_and_extends_an_agent_passes(repo, preflight):
+    result = preflight(_with_plugin(repo, "tracker"))
+    assert result.returncode == 0, result.stdout
+    assert last(result) == "PREFLIGHT OK"
+
+
+def test_plugins_a_listed_plugin_file_that_is_missing_fails_naming_it(repo, preflight):
+    result = preflight(_with_plugin(repo, "tracker", write=False))
+    assert_failed(result, "plugins", PLUGIN, "does not exist")
+
+
+def test_plugins_a_plugin_extending_no_agent_or_skill_fails_naming_both(repo, preflight):
+    result = preflight(_with_plugin(repo, "ledger-keeper"))
+    assert_failed(result, "plugins", PLUGIN, "ledger-keeper")
 
 
 def test_o39_a_script_not_executable_in_git_fails_the_executable_check(repo, preflight):

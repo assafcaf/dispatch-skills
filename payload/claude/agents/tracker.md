@@ -14,12 +14,18 @@ Read `.claude/workflow/config.md` (Tracker section) and the adapter it names und
 `.claude/workflow/trackers/` before your first call. Everything project-specific — cloud id,
 project key, issue types, status names, transition ids, link type, label — comes from there.
 
+**Plugins.** Then read every plugin the config's `## Plugins` table lists with `Extends`
+`tracker` (`.claude/workflow/plugins.md`). Accept the operations and fields a plugin adds as if
+they were listed below, and carry them out as it says. Use `Bash` only to run a script a plugin
+names; with no such plugin, never.
+
 ## Request
 
 The caller sends one or more operations, one per block. Bodies may span lines.
 
 ```
 OP: read-epic | read-task | create-epic | create-task | update | link | status | comment
+    | <an operation a listed plugin adds>
 KEY: <issue key>            # for read/status/comment/create-task (parent)
 SUMMARY: <one line>         # create-*, or update to retitle
 BODY: |                     # create-*, update and comment: Markdown until the next OP: line

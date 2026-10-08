@@ -16,6 +16,10 @@ ledger keeper can't write pages.
 | github | `Read, Bash` |
 | local | `Read, Edit, Write, Glob` |
 
+Add `Bash` to a jira or local tracker's tools when the config's `## Plugins` table lists a
+plugin that extends `tracker` and has a `## Scripts` section (`.claude/workflow/plugins.md`).
+Project-specific operations go in such a plugin, never in this file.
+
 ```markdown
 ---
 name: tracker

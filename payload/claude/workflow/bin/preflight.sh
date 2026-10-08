@@ -20,6 +20,8 @@
 #   lockfile              the Commands `Lockfile`, when named, exists
 #   models                each agent file's `model:` matches the Agents table, with the Tiers
 #                         table's `standard` row for test-designer and code-writer
+#   plugins               every file the Plugins table lists exists, and its Extends names an
+#                         agent in .claude/agents/ or a skill in .claude/skills/
 #   executable            every .claude/workflow/bin/*.sh is mode 100755 in the git index
 #   gitignore             .gitignore covers .work/ and .claude/worktrees/
 #   line-endings          core.autocrlf and .gitattributes agree: not autocrlf=true with
@@ -59,7 +61,8 @@ US=$'\037'
 # The sections a config of this PAD version has, when the payload's config.example.md is not
 # installed beside bin/. Keep in step with config.example.md's `## ` headings.
 FALLBACK_SECTIONS=(
-  "Tracker" "Agents" "Tracker updates during a run" "Paths" "Project knowledge" "Commands"
+  "Tracker" "Agents" "Tracker updates during a run" "Plugins" "Paths" "Project knowledge"
+  "Commands"
   "Git moves" "Serial resources" "Surfaces" "Review" "Execution"
 )
 
@@ -289,6 +292,22 @@ check_gitignore() {
   done
 }
 
+check_plugins() {
+  local p e file ext
+  while IFS="$US" read -r p e; do
+    file="$(value "$p")"
+    [ -n "$file" ] || continue
+    ext="$(value "$e")"
+    if [ ! -f "$file" ]; then
+      fail plugins "$file is listed in the Plugins table but does not exist"
+      continue
+    fi
+    if [ -z "$ext" ] || { [ ! -f ".claude/agents/$ext.md" ] && [ ! -f ".claude/skills/$ext/SKILL.md" ]; }; then
+      fail plugins "$file extends '${ext:-nothing}', which is no agent in .claude/agents/ or skill in .claude/skills/"
+    fi
+  done <<<"$(table "## Plugins" "Plugin,Extends")"
+}
+
 check_line_endings() {
   local auto eol=""
   git rev-parse --is-inside-work-tree >/dev/null 2>&1 || return 0
@@ -317,6 +336,7 @@ if [ -f "$config" ]; then
   check_dependency_directory
   check_lockfile
   check_models
+  check_plugins
 fi
 check_executable
 check_gitignore
