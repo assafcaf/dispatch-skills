@@ -79,6 +79,17 @@ So progress is visible without reading the terminal:
 | Gate failed or blocked | stays doing | what failed, and what is needed |
 | Epic finished | epic → review | PR URL |
 
+## Plugins
+
+Project-owned additions to PAD's agents and skills (`.claude/workflow/plugins.md`). Each file is
+under `.claude/pad-plugins/`, which `/pad-update` never touches; only the plugins listed here
+are in force.
+
+| Plugin | Extends | Adds |
+|---|---|---|
+
+None installed.
+
 ## Paths
 
 | What | Where | Committed |
