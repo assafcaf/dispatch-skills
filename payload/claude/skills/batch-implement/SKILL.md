@@ -155,8 +155,8 @@ run log's `agents:` lines give you back each owner's id; trust the run log and
 ## 3. Run waves until no task is left
 
 **a. Fill the free slots.** Ready tasks are those not done whose blockers are all done. Start
-them in key order up to the parallelism limit, skipping only a task the planner listed under
-`CONFLICTS` with one already running. Sharing a file is not a conflict: `merge-task.sh`
+them all in key order, or up to the config's parallelism cap if it sets one, skipping only
+a task the planner listed under `CONFLICTS` with one already running. Sharing a file is not a conflict: `merge-task.sh`
 merges additions to one file, and a real conflict comes back as `CONFLICT` and is rebased. Don't wait
 for a whole wave to close. Whenever an owner reports `DONE`, `FAILED` or `BLOCKED`, start
 whatever is ready now. The waves are the plan's order, not a barrier.

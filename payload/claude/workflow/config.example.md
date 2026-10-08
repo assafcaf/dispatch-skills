@@ -204,7 +204,8 @@ The places where the product is seen or used. Optional; none are configured.
   from the epic branch.
 - **Mode:** `owner`. How `/batch-implement` runs a task: `owner` (ticket-owner agents) or
   `workflow` (the Workflow tool). `--mode` overrides it for one run.
-- **Parallelism:** at most `3` tasks (ticket owners) at once.
+- **Parallelism:** `none`: every ready task starts at once. Set a number only to cap ticket
+  owners; host load is already bounded by suite slots, below.
 - **Suite slots:** `2` — at most this many full-suite runs at once, through `bin/suite-slot.sh`;
   a waiting merge gate goes first. `PAD_SUITE_SLOTS` overrides it.
 - **Final review:** `off`. Set to a `/code-review` level (`low`, `medium`, …) to run one

@@ -21,7 +21,7 @@ named here, stop and ask, naming the sub-runs.
 |---|---|
 | `moves` | step 5, only its `check-moves.sh` run: the permission rules the Git moves need |
 | `surfaces` | step 7b: rescan the config's surface rows |
-| `load` | step 7c: calibrate suite slots and parallelism again |
+| `load` | step 7c: calibrate suite slots again |
 | `capabilities` | step 7e: what Claude Code features this machine has |
 | `rehearse` | step 8: the closing dry run of the delivery path |
 | `upgrade` | step 7f: bring the config up to the installed PAD version |
@@ -221,8 +221,9 @@ bash .claude/workflow/bin/load-probe.sh <N> -- <full suite cmd>
 ```
 
 It runs the suite alone, then N copies at once, and lists the tests that failed only under load.
-Its last line, `SUGGEST slots=<n> parallelism=<n>`, is what to propose to the operator for the
-config's suite slots and parallelism. Write them only once the operator accepts.
+Its last line, `SUGGEST slots=<n> parallelism=<n>`, gives the suite slots to propose to the
+operator. Write them only once the operator accepts. Leave parallelism `none` unless the operator
+asks for a cap: the slots already bound how many suites load the host at once.
 
 ## 7d. Line endings
 
